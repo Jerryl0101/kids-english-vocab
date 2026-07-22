@@ -41,24 +41,41 @@
     <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-600 drop-shadow-sm">🌟 英文單字練習 🌟</h1>
     <p class="text-slate-500 mt-1 text-sm sm:text-base">點一下卡片看答案，再按「下一個」繼續！</p>
 
-    <label class="inline-flex items-center gap-2 mt-4 cursor-pointer select-none">
-      <span class="text-sm font-medium text-slate-600">🎧 聽力模式</span>
-      <span class="relative inline-block w-11 h-6">
-        <input type="checkbox" id="listeningToggle" class="sr-only peer" />
-        <span class="absolute inset-0 rounded-full bg-slate-300 peer-checked:bg-indigo-500 transition-colors"></span>
-        <span class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></span>
-      </span>
-    </label>
+    <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4">
+      <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+        <span class="text-sm font-medium text-slate-600">🎧 聽力模式</span>
+        <span class="relative inline-block w-11 h-6">
+          <input type="checkbox" id="listeningToggle" class="sr-only peer" />
+          <span class="absolute inset-0 rounded-full bg-slate-300 peer-checked:bg-indigo-500 transition-colors"></span>
+          <span class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></span>
+        </span>
+      </label>
+
+      <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+        <span class="text-sm font-medium text-slate-600">🌟 只複習星星單字</span>
+        <span class="relative inline-block w-11 h-6">
+          <input type="checkbox" id="reviewToggle" class="sr-only peer" />
+          <span class="absolute inset-0 rounded-full bg-slate-300 peer-checked:bg-amber-500 transition-colors"></span>
+          <span class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></span>
+        </span>
+      </label>
+    </div>
   </header>
 
   <main class="w-full max-w-md">
     <div
       id="card"
-      class="bg-white rounded-3xl shadow-xl p-8 sm:p-10 text-center cursor-pointer select-none transition-transform active:scale-95 hover:shadow-2xl"
+      class="relative bg-white rounded-3xl shadow-xl p-8 sm:p-10 text-center cursor-pointer select-none transition-transform active:scale-95 hover:shadow-2xl"
       role="button"
       tabindex="0"
       aria-label="點擊顯示英文單字"
     >
+      <button
+        id="starBtn"
+        class="absolute top-3 right-3 text-3xl leading-none text-slate-300 active:scale-90 transition-transform"
+        aria-label="標記這個單字還不熟"
+      >☆</button>
+
       <div id="emoji" class="text-7xl sm:text-8xl mb-4"></div>
 
       <div id="zhWord" class="text-4xl sm:text-5xl font-bold text-slate-800 mb-4 leading-relaxed"></div>
@@ -79,10 +96,16 @@
       >🔊 重聽</button>
     </div>
 
-    <button
-      id="nextBtn"
-      class="w-full mt-4 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white text-2xl font-bold py-4 rounded-full shadow-lg transition-transform"
-    >下一個 ➜</button>
+    <div class="flex gap-3 mt-4">
+      <button
+        id="prevBtn"
+        class="flex-1 bg-white border-2 border-indigo-300 text-indigo-500 text-xl font-bold py-4 rounded-full shadow hover:bg-indigo-50 active:scale-95 transition"
+      >⬅ 上一個</button>
+      <button
+        id="nextBtn"
+        class="flex-1 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white text-xl font-bold py-4 rounded-full shadow-lg transition-transform"
+      >下一個 ➜</button>
+    </div>
   </main>
 
 <script>
@@ -239,10 +262,15 @@
     { en: "shelter", zh: "避難所", ruby: "<ruby>避<rt>ㄅㄧˋ</rt></ruby><ruby>難<rt>ㄋㄢˋ</rt></ruby><ruby>所<rt>ㄙㄨㄛˇ</rt></ruby>", emoji: "⛺" },
   ];
 
-  let currentIndex = 0;
   let revealed = false;
   let cachedVoices = [];
   let listeningMode = false;
+  let reviewMode = false;
+
+  const starred = new Set(JSON.parse(localStorage.getItem('kev-starred') || '[]'));
+  const allIndices = WORDS.map((_, i) => i);
+  let activeIndices = allIndices;
+  let playPos = 0;
 
   const cardEl = document.getElementById('card');
   const emojiEl = document.getElementById('emoji');
@@ -251,9 +279,23 @@
   const enWordEl = document.getElementById('enWord');
   const tapHintEl = document.getElementById('tapHint');
   const progressEl = document.getElementById('progress');
+  const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
   const replayBtn = document.getElementById('replayBtn');
   const listeningToggle = document.getElementById('listeningToggle');
+  const reviewToggle = document.getElementById('reviewToggle');
+  const starBtn = document.getElementById('starBtn');
+
+  function saveStarred() {
+    localStorage.setItem('kev-starred', JSON.stringify([...starred]));
+  }
+
+  function rebuildActiveIndices() {
+    const currentWordIndex = activeIndices[playPos];
+    activeIndices = reviewMode ? allIndices.filter((i) => starred.has(i)) : allIndices;
+    const preservedPos = activeIndices.indexOf(currentWordIndex);
+    playPos = preservedPos !== -1 ? preservedPos : 0;
+  }
 
   function loadVoices() {
     cachedVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
@@ -317,9 +359,36 @@
       .join(' ');
   }
 
+  function updateStarButton(wordIndex) {
+    const isStarred = starred.has(wordIndex);
+    starBtn.textContent = isStarred ? '⭐' : '☆';
+    starBtn.classList.toggle('text-amber-400', isStarred);
+    starBtn.classList.toggle('text-slate-300', !isStarred);
+  }
+
   function loadWord() {
-    const word = WORDS[currentIndex];
     revealed = false;
+
+    if (activeIndices.length === 0) {
+      emojiEl.textContent = '';
+      zhWordEl.innerHTML = '';
+      hintEl.textContent = '';
+      enWordEl.textContent = '';
+      enWordEl.classList.add('hidden');
+      replayBtn.classList.add('hidden');
+      starBtn.classList.add('hidden');
+      progressEl.textContent = '0 / 0';
+      tapHintEl.classList.remove('hidden');
+      tapHintEl.textContent = '🌟 還沒有標記任何單字，切換回一般模式練習，把不熟的單字點星星標記起來吧！';
+      cardEl.classList.remove('pop-in');
+      void cardEl.offsetWidth;
+      cardEl.classList.add('pop-in');
+      return;
+    }
+
+    starBtn.classList.remove('hidden');
+    const wordIndex = activeIndices[playPos];
+    const word = WORDS[wordIndex];
 
     emojiEl.textContent = word.emoji;
     zhWordEl.innerHTML = renderZhuyin(word.ruby);
@@ -327,7 +396,10 @@
     enWordEl.textContent = word.en;
     enWordEl.classList.add('hidden');
     replayBtn.classList.toggle('hidden', !listeningMode);
-    progressEl.textContent = `第 ${currentIndex + 1} / ${WORDS.length} 個`;
+    updateStarButton(wordIndex);
+    progressEl.textContent = reviewMode
+      ? `⭐ 複習模式：第 ${playPos + 1} / ${activeIndices.length} 個`
+      : `第 ${playPos + 1} / ${activeIndices.length} 個`;
 
     emojiEl.classList.toggle('hidden', listeningMode);
     zhWordEl.classList.toggle('hidden', listeningMode);
@@ -347,7 +419,8 @@
   }
 
   function reveal() {
-    const word = WORDS[currentIndex];
+    if (activeIndices.length === 0) return;
+    const word = WORDS[activeIndices[playPos]];
     if (!revealed) {
       revealed = true;
       emojiEl.classList.remove('hidden');
@@ -371,16 +444,53 @@
 
   replayBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    speak(WORDS[currentIndex].en);
+    if (activeIndices.length === 0) return;
+    speak(WORDS[activeIndices[playPos]].en);
+  });
+
+  starBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (activeIndices.length === 0) return;
+    const wordIndex = activeIndices[playPos];
+    if (starred.has(wordIndex)) {
+      starred.delete(wordIndex);
+    } else {
+      starred.add(wordIndex);
+    }
+    saveStarred();
+    if (reviewMode) {
+      rebuildActiveIndices();
+      loadWord();
+    } else {
+      updateStarButton(wordIndex);
+    }
+  });
+
+  prevBtn.addEventListener('click', () => {
+    if (activeIndices.length === 0) return;
+    playPos = (playPos - 1 + activeIndices.length) % activeIndices.length;
+    loadWord();
   });
 
   nextBtn.addEventListener('click', () => {
-    currentIndex = (currentIndex + 1) % WORDS.length;
+    if (activeIndices.length === 0) return;
+    playPos = (playPos + 1) % activeIndices.length;
     loadWord();
   });
 
   listeningToggle.addEventListener('change', () => {
     listeningMode = listeningToggle.checked;
+    loadWord();
+  });
+
+  reviewToggle.addEventListener('change', () => {
+    if (reviewToggle.checked && starred.size === 0) {
+      reviewToggle.checked = false;
+      alert('目前還沒有標記任何單字喔！練習時點卡片右上角的星星，把答錯或不熟的單字標記起來吧。');
+      return;
+    }
+    reviewMode = reviewToggle.checked;
+    rebuildActiveIndices();
     loadWord();
   });
 
