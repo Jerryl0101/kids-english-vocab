@@ -40,6 +40,15 @@
   <header class="text-center mb-6">
     <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-600 drop-shadow-sm">🌟 英文單字練習 🌟</h1>
     <p class="text-slate-500 mt-1 text-sm sm:text-base">點一下卡片看答案，再按「下一個」繼續！</p>
+
+    <label class="inline-flex items-center gap-2 mt-4 cursor-pointer select-none">
+      <span class="text-sm font-medium text-slate-600">🎧 聽力模式</span>
+      <span class="relative inline-block w-11 h-6">
+        <input type="checkbox" id="listeningToggle" class="sr-only peer" />
+        <span class="absolute inset-0 rounded-full bg-slate-300 peer-checked:bg-indigo-500 transition-colors"></span>
+        <span class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></span>
+      </span>
+    </label>
   </header>
 
   <main class="w-full max-w-md">
@@ -65,9 +74,9 @@
       <span id="progress" class="text-slate-500 font-medium text-sm sm:text-base"></span>
       <button
         id="replayBtn"
-        class="hidden bg-white border-2 border-indigo-300 text-indigo-500 rounded-full px-4 py-2 text-xl shadow hover:bg-indigo-50 active:scale-95 transition"
+        class="hidden bg-white border-2 border-indigo-300 text-indigo-500 rounded-full px-4 py-2 text-base font-medium shadow hover:bg-indigo-50 active:scale-95 transition"
         aria-label="再聽一次發音"
-      >🔊</button>
+      >🔊 重聽</button>
     </div>
 
     <button
@@ -233,6 +242,7 @@
   let currentIndex = 0;
   let revealed = false;
   let cachedVoices = [];
+  let listeningMode = false;
 
   const cardEl = document.getElementById('card');
   const emojiEl = document.getElementById('emoji');
@@ -243,6 +253,7 @@
   const progressEl = document.getElementById('progress');
   const nextBtn = document.getElementById('nextBtn');
   const replayBtn = document.getElementById('replayBtn');
+  const listeningToggle = document.getElementById('listeningToggle');
 
   function loadVoices() {
     cachedVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
@@ -315,20 +326,33 @@
     hintEl.textContent = letterHint(word.en);
     enWordEl.textContent = word.en;
     enWordEl.classList.add('hidden');
-    tapHintEl.classList.remove('hidden');
-    tapHintEl.textContent = '👆 點我看答案';
-    replayBtn.classList.add('hidden');
+    replayBtn.classList.toggle('hidden', !listeningMode);
     progressEl.textContent = `第 ${currentIndex + 1} / ${WORDS.length} 個`;
+
+    emojiEl.classList.toggle('hidden', listeningMode);
+    zhWordEl.classList.toggle('hidden', listeningMode);
+    hintEl.classList.toggle('hidden', listeningMode);
+    tapHintEl.classList.remove('hidden');
+    tapHintEl.textContent = listeningMode
+      ? '🎧 仔細聽，猜猜是什麼意思，點一下看答案'
+      : '👆 點我看答案';
 
     cardEl.classList.remove('pop-in');
     void cardEl.offsetWidth;
     cardEl.classList.add('pop-in');
+
+    if (listeningMode) {
+      speak(word.en);
+    }
   }
 
   function reveal() {
     const word = WORDS[currentIndex];
     if (!revealed) {
       revealed = true;
+      emojiEl.classList.remove('hidden');
+      zhWordEl.classList.remove('hidden');
+      hintEl.classList.remove('hidden');
       enWordEl.classList.remove('hidden');
       enWordEl.classList.add('bounce-once');
       tapHintEl.textContent = '🔁 再點一次可以再聽一遍';
@@ -352,6 +376,11 @@
 
   nextBtn.addEventListener('click', () => {
     currentIndex = (currentIndex + 1) % WORDS.length;
+    loadWord();
+  });
+
+  listeningToggle.addEventListener('change', () => {
+    listeningMode = listeningToggle.checked;
     loadWord();
   });
 
