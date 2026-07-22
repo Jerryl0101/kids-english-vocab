@@ -107,6 +107,8 @@
 
       <div id="hint" class="font-mono text-3xl sm:text-4xl tracking-widest text-indigo-400 mb-2"></div>
 
+      <div id="quizOptions" class="hidden mt-2"></div>
+
       <div id="enWord" class="text-5xl sm:text-6xl font-extrabold text-emerald-500 mt-4 hidden"></div>
 
       <p id="tapHint" class="text-slate-400 text-sm mt-4">👆 點我看答案</p>
@@ -314,6 +316,10 @@
   const rangeStartInput = document.getElementById('rangeStart');
   const rangeEndInput = document.getElementById('rangeEnd');
   const starBtn = document.getElementById('starBtn');
+  const quizOptionsEl = document.getElementById('quizOptions');
+
+  let quizAnswered = false;
+  let audioCtx = null;
 
   rangeStartInput.min = 1;
   rangeStartInput.max = WORDS.length;
@@ -333,6 +339,73 @@
       [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
+  }
+
+  function playCelebration() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((freq, i) => {
+        const start = now + i * 0.1;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.25, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(start);
+        osc.stop(start + 0.32);
+      });
+    } catch (e) {
+      // Web Audio unsupported — silently skip the celebration sound.
+    }
+  }
+
+  function pickDistractors(correctIndex, count) {
+    const correctZh = WORDS[correctIndex].zh;
+    const pool = allIndices.filter((i) => i !== correctIndex && WORDS[i].zh !== correctZh);
+    return shuffle(pool).slice(0, count);
+  }
+
+  function renderQuizOptions(correctIndex) {
+    quizOptionsEl.innerHTML = '';
+    const optionIndices = shuffle([correctIndex, ...pickDistractors(correctIndex, 2)]);
+
+    optionIndices.forEach((idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className =
+        'quiz-option block w-full text-2xl sm:text-3xl font-bold py-4 px-4 mb-3 rounded-2xl border-2 border-slate-200 bg-white hover:bg-slate-50 active:scale-95 transition';
+      btn.innerHTML = renderZhuyin(WORDS[idx].ruby);
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleOptionClick(btn, idx, correctIndex);
+      });
+      quizOptionsEl.appendChild(btn);
+    });
+  }
+
+  function handleOptionClick(btn, chosenIndex, correctIndex) {
+    if (quizAnswered || btn.disabled) return;
+
+    if (chosenIndex === correctIndex) {
+      quizAnswered = true;
+      btn.disabled = true;
+      btn.classList.remove('border-slate-200', 'hover:bg-slate-50');
+      btn.classList.add('border-emerald-400', 'bg-emerald-50', 'text-emerald-600');
+      Array.from(quizOptionsEl.children).forEach((b) => {
+        if (b !== btn) b.remove();
+      });
+      playCelebration();
+      revealAnswer('🎉 答對了！');
+    } else {
+      btn.disabled = true;
+      btn.classList.remove('border-slate-200', 'hover:bg-slate-50');
+      btn.classList.add('border-rose-300', 'bg-rose-50', 'text-rose-400', 'opacity-70');
+    }
   }
 
   function clampRange(value, min, max) {
@@ -417,7 +490,7 @@
     return word
       .split('')
       .map((ch, i) => {
-        if (i === 0) return ch.toUpperCase();
+        if (i === 0) return ch.toLowerCase();
         if (/[a-zA-Z]/.test(ch)) return '_';
         return ch;
       })
@@ -442,6 +515,7 @@
       enWordEl.classList.add('hidden');
       replayBtn.classList.add('hidden');
       starBtn.classList.add('hidden');
+      quizOptionsEl.classList.add('hidden');
       progressEl.textContent = '0 / 0';
       tapHintEl.classList.remove('hidden');
       tapHintEl.textContent = '🌟 還沒有標記任何單字，切換回一般模式練習，把不熟的單字點星星標記起來吧！';
@@ -473,10 +547,16 @@
     emojiEl.classList.toggle('hidden', listeningMode);
     zhWordEl.classList.toggle('hidden', listeningMode);
     hintEl.classList.toggle('hidden', listeningMode);
+    quizOptionsEl.classList.toggle('hidden', !listeningMode);
+    quizAnswered = false;
     tapHintEl.classList.remove('hidden');
-    tapHintEl.textContent = listeningMode
-      ? '🎧 仔細聽，猜猜是什麼意思，點一下看答案'
-      : '👆 點我看答案';
+
+    if (listeningMode) {
+      renderQuizOptions(wordIndex);
+      tapHintEl.textContent = '🎧 仔細聽，選出正確的意思！';
+    } else {
+      tapHintEl.textContent = '👆 點我看答案';
+    }
 
     cardEl.classList.remove('pop-in');
     void cardEl.offsetWidth;
@@ -487,19 +567,22 @@
     }
   }
 
+  function revealAnswer(message) {
+    if (revealed) return;
+    revealed = true;
+    emojiEl.classList.remove('hidden');
+    zhWordEl.classList.remove('hidden');
+    hintEl.classList.remove('hidden');
+    enWordEl.classList.remove('hidden');
+    enWordEl.classList.add('bounce-once');
+    tapHintEl.textContent = message;
+    replayBtn.classList.remove('hidden');
+  }
+
   function reveal() {
-    if (activeIndices.length === 0) return;
+    if (listeningMode || activeIndices.length === 0) return;
     const word = WORDS[activeIndices[playPos]];
-    if (!revealed) {
-      revealed = true;
-      emojiEl.classList.remove('hidden');
-      zhWordEl.classList.remove('hidden');
-      hintEl.classList.remove('hidden');
-      enWordEl.classList.remove('hidden');
-      enWordEl.classList.add('bounce-once');
-      tapHintEl.textContent = '🔁 再點一次可以再聽一遍';
-      replayBtn.classList.remove('hidden');
-    }
+    revealAnswer('🔁 再點一次可以再聽一遍');
     speak(word.en);
   }
 
