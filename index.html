@@ -36,6 +36,66 @@
     50% { transform: translateY(-8px); }
   }
   .bounce-once { animation: bounce-once 0.5s ease-in-out; }
+
+  /* Milestone celebrations (every 10 correct answers in the listening quiz) */
+  #confettiLayer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 60; }
+  .confetti-piece {
+    position: absolute;
+    top: -10%;
+    line-height: 1;
+    animation-name: confetti-fall;
+    animation-timing-function: ease-in;
+    animation-fill-mode: forwards;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(var(--drift, 0px), 110vh) rotate(var(--spin, 360deg)); opacity: 0.85; }
+  }
+  .grand-burst {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    font-size: 6rem;
+    animation: grand-pop 1.6s ease-out forwards;
+    z-index: 61;
+  }
+  @keyframes grand-pop {
+    0% { transform: translate(-50%, -50%) scale(0) rotate(-15deg); opacity: 0; }
+    30% { transform: translate(-50%, -50%) scale(1.3) rotate(8deg); opacity: 1; }
+    55% { transform: translate(-50%, -50%) scale(1) rotate(-4deg); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1.1) rotate(0deg); opacity: 0; }
+  }
+  #milestoneBanner {
+    position: fixed;
+    top: 1.5rem;
+    left: 50%;
+    z-index: 62;
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    font-weight: 800;
+    text-align: center;
+    white-space: nowrap;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  }
+  #milestoneBanner.hidden { display: none; }
+  @keyframes milestone-pop {
+    0% { transform: translate(-50%, -16px) scale(0.6); opacity: 0; }
+    20% { transform: translate(-50%, 0) scale(1.12); opacity: 1; }
+    30% { transform: translate(-50%, 0) scale(1); }
+    88% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -10px) scale(0.92); opacity: 0; }
+  }
+  #milestoneBanner.milestone-pop { animation: milestone-pop 2s ease-in-out forwards; }
+  .tier-1 { background: #eef2ff; color: #4338ca; font-size: 1rem; }
+  .tier-2 { background: #ecfeff; color: #0e7490; font-size: 1.05rem; }
+  .tier-3 { background: linear-gradient(90deg, #fef3c7, #fde68a); color: #92400e; font-size: 1.15rem; }
+  .tier-4 { background: linear-gradient(90deg, #fee2e2, #fecaca); color: #b91c1c; font-size: 1.3rem; }
+  .tier-5 {
+    background: linear-gradient(90deg, #fef9c3, #fde68a, #fca5a5, #c4b5fd);
+    color: #78350f;
+    font-size: 1.5rem;
+    box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.5), 0 10px 25px rgba(0, 0, 0, 0.25);
+  }
 </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-sky-100 via-yellow-50 to-pink-100 flex flex-col items-center justify-center p-4 font-sans">
@@ -137,6 +197,9 @@
       >下一個 ➜</button>
     </div>
   </main>
+
+  <div id="confettiLayer"></div>
+  <div id="milestoneBanner" class="hidden"></div>
 
 <script>
   const WORDS = [
@@ -323,6 +386,22 @@
 
   let quizAnswered = false;
   let audioCtx = null;
+  let correctCount = 0;
+
+  const MILESTONES = [
+    { count: 10, confetti: 14, notes: [523.25, 659.25], message: '🎉 答對 10 題了！', tier: 'tier-1' },
+    { count: 20, confetti: 22, notes: [523.25, 659.25, 783.99], message: '🌟 答對 20 題，繼續加油！', tier: 'tier-2' },
+    { count: 30, confetti: 32, notes: [523.25, 659.25, 783.99, 1046.5], message: '🔥 答對 30 題，超厲害！', tier: 'tier-3' },
+    { count: 40, confetti: 46, notes: [523.25, 659.25, 783.99, 1046.5, 1318.5], message: '🚀 答對 40 題，快滿分了！', tier: 'tier-4' },
+    {
+      count: 50,
+      confetti: 70,
+      notes: [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568],
+      message: '👑 太厲害了！答對 50 題！',
+      tier: 'tier-5',
+      grand: true,
+    },
+  ];
 
   rangeStartInput.min = 1;
   rangeStartInput.max = WORDS.length;
@@ -344,27 +423,111 @@
     return a;
   }
 
+  function ensureAudioCtx() {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+
+  function playTone(ctx, freq, start, dur, peakGain) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(peakGain, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + dur + 0.02);
+  }
+
   function playCelebration() {
     try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      const now = audioCtx.currentTime;
-      const notes = [523.25, 659.25, 783.99, 1046.5];
-      notes.forEach((freq, i) => {
-        const start = now + i * 0.1;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.25, start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
-        osc.connect(gain).connect(audioCtx.destination);
-        osc.start(start);
-        osc.stop(start + 0.32);
+      const ctx = ensureAudioCtx();
+      const now = ctx.currentTime;
+      [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+        playTone(ctx, freq, now + i * 0.1, 0.3, 0.25);
       });
     } catch (e) {
       // Web Audio unsupported — silently skip the celebration sound.
     }
+  }
+
+  function playChime(notes, grand) {
+    try {
+      const ctx = ensureAudioCtx();
+      const now = ctx.currentTime;
+      const step = 0.11;
+      notes.forEach((freq, i) => {
+        playTone(ctx, freq, now + i * step, 0.32, 0.28);
+      });
+      if (grand) {
+        const chordStart = now + notes.length * step + 0.05;
+        notes.slice(-3).forEach((freq) => playTone(ctx, freq * 2, chordStart, 0.7, 0.2));
+      }
+    } catch (e) {
+      // Web Audio unsupported — silently skip the milestone chime.
+    }
+  }
+
+  const CONFETTI_EMOJI = ['🎉', '✨', '⭐', '🌈', '💫', '🎊', '🥳'];
+
+  function spawnConfetti(count, grand) {
+    const layer = document.getElementById('confettiLayer');
+    for (let i = 0; i < count; i++) {
+      const piece = document.createElement('span');
+      piece.className = 'confetti-piece';
+      piece.textContent = CONFETTI_EMOJI[Math.floor(Math.random() * CONFETTI_EMOJI.length)];
+      const duration = 1.6 + Math.random() * (grand ? 1.6 : 1.0);
+      const delay = Math.random() * (grand ? 0.6 : 0.3);
+      const size = grand ? 1.4 + Math.random() * 1.2 : 1.1 + Math.random() * 0.6;
+      piece.style.left = `${Math.random() * 100}%`;
+      piece.style.fontSize = `${size}rem`;
+      piece.style.setProperty('--drift', `${(Math.random() - 0.5) * 200}px`);
+      piece.style.setProperty('--spin', `${360 + Math.random() * 360}deg`);
+      piece.style.animationDuration = `${duration}s`;
+      piece.style.animationDelay = `${delay}s`;
+      layer.appendChild(piece);
+      setTimeout(() => piece.remove(), (duration + delay) * 1000 + 100);
+    }
+  }
+
+  function spawnGrandBurst() {
+    const layer = document.getElementById('confettiLayer');
+    const burst = document.createElement('div');
+    burst.className = 'grand-burst';
+    burst.textContent = '🏆';
+    layer.appendChild(burst);
+    setTimeout(() => burst.remove(), 1700);
+  }
+
+  let bannerTimeout = null;
+
+  function showMilestoneBanner(milestone) {
+    const banner = document.getElementById('milestoneBanner');
+    clearTimeout(bannerTimeout);
+    banner.classList.add('hidden');
+    banner.classList.remove('milestone-pop', 'tier-1', 'tier-2', 'tier-3', 'tier-4', 'tier-5');
+    void banner.offsetWidth;
+    banner.textContent = milestone.message;
+    banner.classList.remove('hidden');
+    banner.classList.add('milestone-pop', milestone.tier);
+    bannerTimeout = setTimeout(() => {
+      banner.classList.add('hidden');
+    }, 2000 + (milestone.grand ? 600 : 0));
+  }
+
+  function getMilestone(count) {
+    if (count === 0 || count % 10 !== 0) return null;
+    const tierIndex = Math.min(Math.floor(count / 10), MILESTONES.length) - 1;
+    return MILESTONES[tierIndex];
+  }
+
+  function celebrateMilestone(milestone) {
+    showMilestoneBanner(milestone);
+    spawnConfetti(milestone.confetti, milestone.grand);
+    if (milestone.grand) spawnGrandBurst();
+    setTimeout(() => playChime(milestone.notes, !!milestone.grand), 300);
   }
 
   function pickDistractors(correctIndex, count) {
@@ -404,6 +567,10 @@
       });
       playCelebration();
       revealAnswer('🎉 答對了！');
+
+      correctCount += 1;
+      const milestone = getMilestone(correctCount);
+      if (milestone) celebrateMilestone(milestone);
     } else {
       btn.disabled = true;
       btn.classList.remove('border-slate-200', 'hover:bg-slate-50');
