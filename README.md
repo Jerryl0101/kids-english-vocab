@@ -1,0 +1,38 @@
+# 英文單字練習 - 國小二年級
+
+一個給國小二年級小朋友使用的英文單字練習工具，單一 HTML 檔案，開啟即可使用。
+
+🔗 **線上使用：[https://jerryl0101.github.io/kids-english-vocab/](https://jerryl0101.github.io/kids-english-vocab/)**
+
+## 功能
+
+- 內建 150 個單字，中文附上直式注音（含正確的聲調標示）
+- 顯示英文首字母提示（如 `C _ _ _`）
+- 點擊卡片後顯示完整英文單字，並用美式發音（`en-US`，語速 0.9）朗讀
+- **聽力模式**：關閉畫面上的中文與英文提示，只播放發音，讓小朋友憑聽力猜意思，點擊後才顯示圖案、注音與單字；並附「重聽」按鈕可重複播放
+- 表情符號作為示意插圖，不需額外圖片檔案
+- 「下一個」按鈕切換單字，並顯示進度（第 X / 150 個）
+
+## 技術
+
+- Vite 不需要，純 **單一 HTML 檔案**
+- [Tailwind CSS](https://tailwindcss.com/)（CDN 版本）
+- 原生 JavaScript（無框架、無建置流程）
+- [Web Speech API](https://developer.mozilla.org/docs/Web/API/Web_Speech_API) 做語音朗讀
+
+## 使用方式
+
+直接用瀏覽器開啟 `index.html`，或造訪上面的線上連結。建議在手機或 iPad 的瀏覽器中使用「加入主畫面」功能，可以像 App 一樣全螢幕使用。
+
+## 修改單字資料
+
+所有單字資料都在 `index.html` 內的 `WORDS` 陣列中，每一筆包含：
+
+```js
+{ en: "sing", zh: "唱歌", ruby: "<ruby>唱<rt>ㄔㄤˋ</rt></ruby><ruby>歌<rt>ㄍㄜ</rt></ruby>", emoji: "🎤" }
+```
+
+- `en`：英文單字
+- `zh`：中文意思（純文字，未使用）
+- `ruby`：中文字搭配注音的標記，`<rt>` 內的注音會自動被轉換成直式排列
+- `emoji`：示意插圖用的表情符號
