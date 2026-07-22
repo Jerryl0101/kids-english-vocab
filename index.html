@@ -43,7 +43,7 @@
 
     <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-4">
       <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-        <span class="text-sm font-medium text-slate-600">🎧 聽力模式</span>
+        <span class="text-sm font-medium text-slate-600">🎧 聽力測驗</span>
         <span class="relative inline-block w-11 h-6">
           <input type="checkbox" id="listeningToggle" class="sr-only peer" />
           <span class="absolute inset-0 rounded-full bg-slate-300 peer-checked:bg-indigo-500 transition-colors"></span>
@@ -61,9 +61,9 @@
       </label>
 
       <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-        <span class="text-sm font-medium text-slate-600">🎯 隨機範圍測驗</span>
+        <span class="text-sm font-medium text-slate-600">🔀 隨機出題</span>
         <span class="relative inline-block w-11 h-6">
-          <input type="checkbox" id="examToggle" class="sr-only peer" />
+          <input type="checkbox" id="shuffleToggle" class="sr-only peer" />
           <span class="absolute inset-0 rounded-full bg-slate-300 peer-checked:bg-emerald-500 transition-colors"></span>
           <span class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></span>
         </span>
@@ -71,7 +71,7 @@
     </div>
 
     <div class="flex items-center justify-center gap-2 mt-3 text-sm text-slate-600">
-      <span>第</span>
+      <span>出題範圍：第</span>
       <input
         id="rangeStart"
         type="number"
@@ -83,7 +83,7 @@
         type="number"
         class="w-14 border border-slate-300 rounded-lg px-1 py-1 text-center"
       />
-      <span>題（測驗模式用）</span>
+      <span>題（預設全部，跟隨機出題可各自開關）</span>
     </div>
   </header>
 
@@ -293,7 +293,7 @@
   let cachedVoices = [];
   let listeningMode = false;
   let reviewMode = false;
-  let examMode = false;
+  let shuffleMode = false;
 
   const starred = new Set(JSON.parse(localStorage.getItem('kev-starred') || '[]'));
   const allIndices = WORDS.map((_, i) => i);
@@ -312,7 +312,7 @@
   const replayBtn = document.getElementById('replayBtn');
   const listeningToggle = document.getElementById('listeningToggle');
   const reviewToggle = document.getElementById('reviewToggle');
-  const examToggle = document.getElementById('examToggle');
+  const shuffleToggle = document.getElementById('shuffleToggle');
   const rangeStartInput = document.getElementById('rangeStart');
   const rangeEndInput = document.getElementById('rangeEnd');
   const starBtn = document.getElementById('starBtn');
@@ -405,6 +405,12 @@
       btn.disabled = true;
       btn.classList.remove('border-slate-200', 'hover:bg-slate-50');
       btn.classList.add('border-rose-300', 'bg-rose-50', 'text-rose-400', 'opacity-70');
+
+      if (!starred.has(correctIndex)) {
+        starred.add(correctIndex);
+        saveStarred();
+        updateStarButton(correctIndex);
+      }
     }
   }
 
@@ -413,14 +419,7 @@
     return Math.min(Math.max(value, min), max);
   }
 
-  function rebuildActiveIndices() {
-    const currentWordIndex = activeIndices[playPos];
-    activeIndices = reviewMode ? allIndices.filter((i) => starred.has(i)) : allIndices;
-    const preservedPos = activeIndices.indexOf(currentWordIndex);
-    playPos = preservedPos !== -1 ? preservedPos : 0;
-  }
-
-  function applyExamRange() {
+  function computeRangeIndices() {
     const start = clampRange(parseInt(rangeStartInput.value, 10), 1, WORDS.length);
     const end = clampRange(parseInt(rangeEndInput.value, 10), 1, WORDS.length);
     const lo = Math.min(start, end);
@@ -430,9 +429,19 @@
 
     const rangeIndices = [];
     for (let i = lo - 1; i <= hi - 1; i++) rangeIndices.push(i);
-    activeIndices = shuffle(rangeIndices);
-    playPos = 0;
-    loadWord();
+    return rangeIndices;
+  }
+
+  function isFullRange() {
+    return Number(rangeStartInput.value) === 1 && Number(rangeEndInput.value) === WORDS.length;
+  }
+
+  function rebuildActiveIndices() {
+    const currentWordIndex = activeIndices[playPos];
+    const base = reviewMode ? allIndices.filter((i) => starred.has(i)) : computeRangeIndices();
+    activeIndices = shuffleMode ? shuffle(base) : base;
+    const preservedPos = activeIndices.indexOf(currentWordIndex);
+    playPos = preservedPos !== -1 ? preservedPos : 0;
   }
 
   function loadVoices() {
@@ -536,12 +545,13 @@
     enWordEl.classList.add('hidden');
     replayBtn.classList.toggle('hidden', !listeningMode);
     updateStarButton(wordIndex);
-    if (examMode) {
-      progressEl.textContent = `🎯 測驗模式（第 ${rangeStartInput.value}～${rangeEndInput.value} 題範圍）：第 ${playPos + 1} / ${activeIndices.length} 題`;
-    } else if (reviewMode) {
+    if (reviewMode) {
       progressEl.textContent = `⭐ 複習模式：第 ${playPos + 1} / ${activeIndices.length} 個`;
     } else {
-      progressEl.textContent = `第 ${playPos + 1} / ${activeIndices.length} 個`;
+      const rangeLabel = isFullRange() ? '' : `第 ${rangeStartInput.value}～${rangeEndInput.value} 題範圍・`;
+      const shuffleLabel = shuffleMode ? '🔀 隨機出題' : '📖 依序出題';
+      const prefix = rangeLabel || shuffleMode ? `${rangeLabel}${shuffleLabel}：` : '';
+      progressEl.textContent = `${prefix}第 ${playPos + 1} / ${activeIndices.length} 個`;
     }
 
     emojiEl.classList.toggle('hidden', listeningMode);
@@ -641,35 +651,24 @@
       alert('目前還沒有標記任何單字喔！練習時點卡片右上角的星星，把答錯或不熟的單字標記起來吧。');
       return;
     }
-    if (reviewToggle.checked && examMode) {
-      examMode = false;
-      examToggle.checked = false;
-    }
     reviewMode = reviewToggle.checked;
     rebuildActiveIndices();
     loadWord();
   });
 
-  examToggle.addEventListener('change', () => {
-    if (examToggle.checked) {
-      if (reviewMode) {
-        reviewMode = false;
-        reviewToggle.checked = false;
-      }
-      examMode = true;
-      applyExamRange();
-    } else {
-      examMode = false;
-      rebuildActiveIndices();
-      loadWord();
-    }
+  shuffleToggle.addEventListener('change', () => {
+    shuffleMode = shuffleToggle.checked;
+    rebuildActiveIndices();
+    loadWord();
   });
 
   rangeStartInput.addEventListener('change', () => {
-    if (examMode) applyExamRange();
+    rebuildActiveIndices();
+    loadWord();
   });
   rangeEndInput.addEventListener('change', () => {
-    if (examMode) applyExamRange();
+    rebuildActiveIndices();
+    loadWord();
   });
 
   loadWord();
