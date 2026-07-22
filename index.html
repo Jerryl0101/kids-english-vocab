@@ -59,6 +59,31 @@
           <span class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></span>
         </span>
       </label>
+
+      <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+        <span class="text-sm font-medium text-slate-600">🎯 隨機範圍測驗</span>
+        <span class="relative inline-block w-11 h-6">
+          <input type="checkbox" id="examToggle" class="sr-only peer" />
+          <span class="absolute inset-0 rounded-full bg-slate-300 peer-checked:bg-emerald-500 transition-colors"></span>
+          <span class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></span>
+        </span>
+      </label>
+    </div>
+
+    <div class="flex items-center justify-center gap-2 mt-3 text-sm text-slate-600">
+      <span>第</span>
+      <input
+        id="rangeStart"
+        type="number"
+        class="w-14 border border-slate-300 rounded-lg px-1 py-1 text-center"
+      />
+      <span>～</span>
+      <input
+        id="rangeEnd"
+        type="number"
+        class="w-14 border border-slate-300 rounded-lg px-1 py-1 text-center"
+      />
+      <span>題（測驗模式用）</span>
     </div>
   </header>
 
@@ -266,6 +291,7 @@
   let cachedVoices = [];
   let listeningMode = false;
   let reviewMode = false;
+  let examMode = false;
 
   const starred = new Set(JSON.parse(localStorage.getItem('kev-starred') || '[]'));
   const allIndices = WORDS.map((_, i) => i);
@@ -284,10 +310,34 @@
   const replayBtn = document.getElementById('replayBtn');
   const listeningToggle = document.getElementById('listeningToggle');
   const reviewToggle = document.getElementById('reviewToggle');
+  const examToggle = document.getElementById('examToggle');
+  const rangeStartInput = document.getElementById('rangeStart');
+  const rangeEndInput = document.getElementById('rangeEnd');
   const starBtn = document.getElementById('starBtn');
+
+  rangeStartInput.min = 1;
+  rangeStartInput.max = WORDS.length;
+  rangeStartInput.value = 1;
+  rangeEndInput.min = 1;
+  rangeEndInput.max = WORDS.length;
+  rangeEndInput.value = WORDS.length;
 
   function saveStarred() {
     localStorage.setItem('kev-starred', JSON.stringify([...starred]));
+  }
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function clampRange(value, min, max) {
+    if (Number.isNaN(value)) return min;
+    return Math.min(Math.max(value, min), max);
   }
 
   function rebuildActiveIndices() {
@@ -295,6 +345,21 @@
     activeIndices = reviewMode ? allIndices.filter((i) => starred.has(i)) : allIndices;
     const preservedPos = activeIndices.indexOf(currentWordIndex);
     playPos = preservedPos !== -1 ? preservedPos : 0;
+  }
+
+  function applyExamRange() {
+    const start = clampRange(parseInt(rangeStartInput.value, 10), 1, WORDS.length);
+    const end = clampRange(parseInt(rangeEndInput.value, 10), 1, WORDS.length);
+    const lo = Math.min(start, end);
+    const hi = Math.max(start, end);
+    rangeStartInput.value = lo;
+    rangeEndInput.value = hi;
+
+    const rangeIndices = [];
+    for (let i = lo - 1; i <= hi - 1; i++) rangeIndices.push(i);
+    activeIndices = shuffle(rangeIndices);
+    playPos = 0;
+    loadWord();
   }
 
   function loadVoices() {
@@ -397,9 +462,13 @@
     enWordEl.classList.add('hidden');
     replayBtn.classList.toggle('hidden', !listeningMode);
     updateStarButton(wordIndex);
-    progressEl.textContent = reviewMode
-      ? `⭐ 複習模式：第 ${playPos + 1} / ${activeIndices.length} 個`
-      : `第 ${playPos + 1} / ${activeIndices.length} 個`;
+    if (examMode) {
+      progressEl.textContent = `🎯 測驗模式（第 ${rangeStartInput.value}～${rangeEndInput.value} 題範圍）：第 ${playPos + 1} / ${activeIndices.length} 題`;
+    } else if (reviewMode) {
+      progressEl.textContent = `⭐ 複習模式：第 ${playPos + 1} / ${activeIndices.length} 個`;
+    } else {
+      progressEl.textContent = `第 ${playPos + 1} / ${activeIndices.length} 個`;
+    }
 
     emojiEl.classList.toggle('hidden', listeningMode);
     zhWordEl.classList.toggle('hidden', listeningMode);
@@ -489,9 +558,35 @@
       alert('目前還沒有標記任何單字喔！練習時點卡片右上角的星星，把答錯或不熟的單字標記起來吧。');
       return;
     }
+    if (reviewToggle.checked && examMode) {
+      examMode = false;
+      examToggle.checked = false;
+    }
     reviewMode = reviewToggle.checked;
     rebuildActiveIndices();
     loadWord();
+  });
+
+  examToggle.addEventListener('change', () => {
+    if (examToggle.checked) {
+      if (reviewMode) {
+        reviewMode = false;
+        reviewToggle.checked = false;
+      }
+      examMode = true;
+      applyExamRange();
+    } else {
+      examMode = false;
+      rebuildActiveIndices();
+      loadWord();
+    }
+  });
+
+  rangeStartInput.addEventListener('change', () => {
+    if (examMode) applyExamRange();
+  });
+  rangeEndInput.addEventListener('change', () => {
+    if (examMode) applyExamRange();
   });
 
   loadWord();
