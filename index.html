@@ -150,6 +150,18 @@
     </div>
   </header>
 
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-md p-4 sm:p-5 mb-4">
+    <div class="flex items-center justify-between gap-2 mb-3">
+      <h2 class="text-xs sm:text-sm font-bold text-slate-700">🎯 集點卡（聽力測驗每答對 50 題蓋一個章）</h2>
+      <button
+        id="stampResetBtn"
+        class="shrink-0 text-xs sm:text-sm font-medium text-rose-500 hover:text-rose-600 active:scale-95 transition"
+      >🔄 兌換並重置</button>
+    </div>
+    <div id="stampSlots" class="grid grid-cols-5 sm:grid-cols-10 gap-2"></div>
+    <p id="stampProgressText" class="text-xs text-slate-400 mt-2 text-center"></p>
+  </div>
+
   <main class="w-full max-w-md">
     <div
       id="card"
@@ -383,10 +395,20 @@
   const rangeEndInput = document.getElementById('rangeEnd');
   const starBtn = document.getElementById('starBtn');
   const quizOptionsEl = document.getElementById('quizOptions');
+  const stampSlotsEl = document.getElementById('stampSlots');
+  const stampProgressTextEl = document.getElementById('stampProgressText');
+  const stampResetBtn = document.getElementById('stampResetBtn');
 
   let quizAnswered = false;
   let audioCtx = null;
   let correctCount = 0;
+
+  const STAMP_GOAL = 10;
+  const STAMP_THRESHOLD = 50;
+  let stampCount = parseInt(localStorage.getItem('kev-stamp-count') || '0', 10);
+  let stampProgress = parseInt(localStorage.getItem('kev-stamp-progress') || '0', 10);
+  if (Number.isNaN(stampCount)) stampCount = 0;
+  if (Number.isNaN(stampProgress)) stampProgress = 0;
 
   const MILESTONES = [
     { count: 10, confetti: 14, notes: [523.25, 659.25], message: '🎉 答對 10 題了！', tier: 'tier-1' },
@@ -530,6 +552,77 @@
     setTimeout(() => playChime(milestone.notes, !!milestone.grand), 300);
   }
 
+  function saveStamps() {
+    localStorage.setItem('kev-stamp-count', String(stampCount));
+    localStorage.setItem('kev-stamp-progress', String(stampProgress));
+  }
+
+  function playStampSound() {
+    try {
+      const ctx = ensureAudioCtx();
+      const now = ctx.currentTime;
+      playTone(ctx, 200, now, 0.14, 0.3);
+      playTone(ctx, 140, now + 0.09, 0.2, 0.25);
+    } catch (e) {
+      // Web Audio unsupported — silently skip the stamp sound.
+    }
+  }
+
+  function renderStampCard(justEarned) {
+    stampSlotsEl.innerHTML = '';
+    for (let i = 0; i < STAMP_GOAL; i++) {
+      const slot = document.createElement('div');
+      const filled = i < stampCount;
+      slot.className = filled
+        ? 'aspect-square rounded-xl border-2 border-amber-300 bg-amber-50 flex items-center justify-center text-xl sm:text-2xl'
+        : 'aspect-square rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-300 text-xs sm:text-base';
+      if (filled) {
+        slot.textContent = '🏅';
+        if (justEarned && i === stampCount - 1) {
+          slot.classList.add('pop-in');
+        }
+      } else {
+        slot.textContent = String(i + 1);
+      }
+      stampSlotsEl.appendChild(slot);
+    }
+
+    stampProgressTextEl.textContent =
+      stampCount >= STAMP_GOAL
+        ? '🎉 集滿 10 個章了！快去兌換獎勵，兌換後記得按重置！'
+        : `再答對 ${STAMP_THRESHOLD - stampProgress} 題聽力測驗，就能蓋下一個章（${stampCount} / ${STAMP_GOAL}）`;
+
+    stampResetBtn.classList.toggle('opacity-40', stampCount === 0 && stampProgress === 0);
+  }
+
+  function addStampProgress() {
+    if (stampCount >= STAMP_GOAL) return;
+    stampProgress += 1;
+    let earned = false;
+    if (stampProgress >= STAMP_THRESHOLD) {
+      stampProgress = 0;
+      stampCount = Math.min(stampCount + 1, STAMP_GOAL);
+      earned = true;
+    }
+    saveStamps();
+    renderStampCard(earned);
+    if (earned) playStampSound();
+  }
+
+  stampResetBtn.addEventListener('click', () => {
+    if (stampCount === 0 && stampProgress === 0) return;
+    const message =
+      stampCount >= STAMP_GOAL
+        ? '確定已經兌換完成獎勵了嗎？按下去會清空集點卡，重新開始收集！'
+        : `目前只有 ${stampCount} / ${STAMP_GOAL} 個章，還沒集滿，確定要清空重新開始嗎？`;
+    if (window.confirm(message)) {
+      stampCount = 0;
+      stampProgress = 0;
+      saveStamps();
+      renderStampCard(false);
+    }
+  });
+
   function pickDistractors(correctIndex, count) {
     const correctZh = WORDS[correctIndex].zh;
     const pool = allIndices.filter((i) => i !== correctIndex && WORDS[i].zh !== correctZh);
@@ -571,6 +664,7 @@
       correctCount += 1;
       const milestone = getMilestone(correctCount);
       if (milestone) celebrateMilestone(milestone);
+      addStampProgress();
     } else {
       btn.disabled = true;
       btn.classList.remove('border-slate-200', 'hover:bg-slate-50');
@@ -841,6 +935,7 @@
     loadWord();
   });
 
+  renderStampCard(false);
   loadWord();
 </script>
 </body>
