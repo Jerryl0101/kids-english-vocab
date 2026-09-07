@@ -232,7 +232,7 @@
         <input
           id="listFilter"
           type="search"
-          placeholder="搜尋中文或英文…"
+          placeholder="搜尋中文、英文或題號…"
           class="order-last w-full sm:order-none sm:w-auto sm:flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-1.5 text-sm"
         />
         <button
@@ -983,7 +983,12 @@
     listBody.innerHTML = '';
     let shown = 0;
     WORDS.forEach((w, i) => {
-      if (q && !w.en.toLowerCase().includes(q) && !w.zh.toLowerCase().includes(q)) return;
+      if (
+        q &&
+        !w.en.toLowerCase().includes(q) &&
+        !w.zh.toLowerCase().includes(q) &&
+        String(i + 1) !== q
+      ) return;
       shown += 1;
       const li = document.createElement('li');
       li.className = 'flex items-baseline gap-3 py-2';
