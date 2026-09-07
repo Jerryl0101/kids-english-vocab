@@ -1,0 +1,17 @@
+{
+  "name": "英文單字練習 - 國小二年級",
+  "short_name": "英文單字練習",
+  "description": "給國小二年級小朋友使用的英文單字練習工具",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#a78bfa",
+  "theme_color": "#818cf8",
+  "icons": [
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
+}
