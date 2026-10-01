@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>課文學習 - 國小二年級</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+<link rel="manifest" href="site.webmanifest" />
+<meta name="theme-color" content="#818cf8" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="課文學習" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html, body { overflow-x: hidden; max-width: 100%; }
+  .para-btn.playing { background-color: rgb(254 243 199); border-color: rgb(251 191 36); }
+  .vocab-word { color: rgb(225 29 72); font-weight: 800; }
+</style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-sky-100 via-yellow-50 to-pink-100 flex flex-col items-center px-3 py-4 font-sans">
+
+  <header class="text-center mb-3 w-full max-w-2xl">
+    <a href="index.html" class="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-indigo-500 hover:text-indigo-700 mb-1">← 回首頁</a>
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-amber-600 drop-shadow-sm">📖 課文學習 📖</h1>
+    <p class="text-slate-500 mt-1 text-xs sm:text-sm">點一段課文，聽聽看怎麼唸！</p>
+  </header>
+
+  <div class="w-full max-w-2xl flex items-center gap-2 mb-3">
+    <label class="text-sm font-bold text-slate-600 shrink-0">選課：</label>
+    <select id="lessonSelect" class="flex-1 rounded-xl border-2 border-amber-200 px-3 py-2 text-sm font-bold text-amber-700 bg-white"></select>
+  </div>
+
+  <div class="w-full max-w-2xl flex items-center gap-2 mb-3">
+    <label class="text-sm font-bold text-slate-600 shrink-0">語速：</label>
+    <div id="rateGroup" class="flex-1 flex gap-2"></div>
+  </div>
+
+  <main class="w-full max-w-2xl bg-white rounded-3xl shadow-md border-4 border-amber-200 p-4 sm:p-6">
+    <h2 id="lessonTitle" class="text-xl font-extrabold text-amber-600 mb-3"></h2>
+    <div id="paragraphs" class="space-y-3"></div>
+    <div class="flex justify-center mt-5">
+      <button id="playAllBtn" class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white rounded-full px-5 py-2 text-sm font-bold shadow active:scale-95 transition">
+        🔊 完整朗讀
+      </button>
+    </div>
+  </main>
+
+  <footer class="mt-6 text-xs text-slate-400">為國小二年級小朋友製作 💛</footer>
+
+<script>
+  // Each lesson: id, title, paragraphs (array of { en, zh }).
+  // Add new lessons here as more textbook pages are transcribed.
+  const LESSONS = [
+    {
+      id: "reading1",
+      unit: 1,
+      title: "Reading 1: Dan and Gramps",
+      paragraphs: [
+        { en: "Dan has a chore. Gramps has a chore. Dan and Gramps can fold the wash.", zh: "丹有一項家事要做。爺爺也有一項家事要做。丹和爺爺可以摺洗好的衣服。" },
+        { en: "Dan and Gramps can sing. Dan and Gramps can clean. Dan and Gramps can sing and clean.", zh: "丹和爺爺會唱歌。丹和爺爺會打掃。丹和爺爺可以邊唱歌邊打掃。" },
+        { en: "Gramps has a bag of soap. Dan can wash a sock. Dan and Gramps can wash and clean.", zh: "爺爺有一袋肥皂。丹可以洗一隻襪子。丹和爺爺可以洗衣服和打掃。" },
+        { en: "Gramps can buy a ham. Gramps can buy yams. Dan can grab a bag. The bag has cans and jam. Dan's bag is full.", zh: "爺爺可以買一條火腿。爺爺可以買地瓜。丹可以拿一個袋子。袋子裡有罐頭和果醬。丹的袋子裝滿了。" },
+        { en: "Gramps and Jan and Sam can eat. Dan has a pal, Nan. Gramps and Dan are glad.", zh: "爺爺、珍和山姆可以吃東西。丹有一個朋友,叫南。爺爺和丹很開心。" }
+      ]
+    },
+    {
+      id: "reading2",
+      unit: 1,
+      title: "Reading 2: Children Can Learn",
+      paragraphs: [
+        { en: "Glen is a small baby. Mom and Dad help Glen. Dad can give Glen a bottle. Glen can be fed. Then Glen can get a nap.", zh: "格倫是個小寶寶。媽媽和爸爸幫助格倫。爸爸可以餵格倫喝奶瓶。格倫可以被餵飽。然後格倫可以睡午覺。" },
+        { en: "Nell is not big yet. Nell is small. Nell gets help. Mom can help Nell. She can give Nell a snack.", zh: "奈爾還不大。奈爾很小。奈爾需要幫忙。媽媽可以幫助奈爾。媽媽可以給奈爾點心吃。" },
+        { en: "Can Bess get milk? Yes, but Bess makes a mess. Bess feels bad. Bess can ask Dad to help.", zh: "貝絲可以拿牛奶嗎?可以,但貝絲把它弄得一團亂。貝絲覺得很難過。貝絲可以請爸爸幫忙。" },
+        { en: `Dad can help Bess. Dad is glad to help Bess. Bess can get milk. Bess feels good. Bess and Dad are glad. Bess tells Dad, "Thanks!"`, zh: "爸爸可以幫助貝絲。爸爸很樂意幫助貝絲。貝絲可以拿到牛奶了。貝絲覺得很開心。貝絲和爸爸都很開心。貝絲對爸爸說:「謝謝!」" },
+        { en: "Dan can learn math. Dan has a math test. Dan gets help to pass the math test. Dad can help Jan spell hen, pen, den, bell, and well. Dad helps Jan spell and pass a test.", zh: "丹可以學數學。丹有一個數學考試。丹得到幫助通過了數學考試。爸爸可以幫珍拼出 hen、pen、den、bell 和 well 這些字。爸爸幫珍拼字並通過考試。" },
+        { en: "Parents help children. Matt can get hurt. Mom helps Matt. Matt is safe. Matt will not get hurt.", zh: "父母會幫助小孩。麥特可能會受傷。媽媽幫助麥特。麥特很安全。麥特不會受傷。" },
+        { en: `Fred has a red bat. Dad can help Fred hit a ball. Fred can run fast. Fred tells Dad, "Thanks." Fred is glad Dad can help.`, zh: "佛瑞德有一支紅色球棒。爸爸可以幫佛瑞德打球。佛瑞德可以跑得很快。佛瑞德對爸爸說:「謝謝。」佛瑞德很高興爸爸可以幫忙。" }
+      ]
+    },
+    {
+      id: "reading3",
+      unit: 1,
+      title: "Reading 3: We Live in a Home",
+      paragraphs: [
+        { en: "Get up! Get out of bed! Tell us where you live. Let us see!", zh: "起床!離開你的床!告訴我們你住在哪裡。讓我們看看!" },
+        { en: "Jen and Jim live in an apartment in town. It has steps. Jen wants a big pet, but the pet will not fit. Jim wants a fish. The fish is little. Mom does not want a pet.", zh: "珍和吉姆住在城裡的公寓。公寓有樓梯。珍想要一隻大寵物,但寵物放不下。吉姆想要一條魚。這條魚很小。媽媽不想要寵物。" },
+        { en: "Ted and Pam live in a yellow townhouse. Ted and Pam have a pet. The pet is a black cat named Tisha. Ted and Pam tell Tisha to be good when they leave. Tisha likes to play with a ball of yarn. Do you think Tisha will be good?", zh: "泰德和潘住在一棟黃色的連棟透天厝。泰德和潘有一隻寵物。這隻寵物是一隻叫蒂莎的黑貓。泰德和潘出門時告訴蒂莎要乖乖的。蒂莎喜歡玩毛線球。你覺得蒂莎會乖嗎?" },
+        { en: "Ned and Dad have their own houseboat. It has a deck where they can sit in the sun. A houseboat is a boat and a place to live. Today the weather will be hot. Do you think Ned and Dad will swim?", zh: "奈德和爸爸有他們自己的船屋。船屋有一個甲板,可以坐在那裡曬太陽。船屋既是一艘船,也是一個居住的地方。今天天氣會很熱。你覺得奈德和爸爸會去游泳嗎?" },
+        { en: "Mom and Dad live in a house. Five people can fit in the house. It has a den and a desk. The house is red and yellow.", zh: "媽媽和爸爸住在一棟房子裡。這棟房子可以容納五個人。房子裡有一個書房和一張書桌。這棟房子是紅色和黃色的。" },
+        { en: "Get in bed, Jen and Jim. Get in bed, Ted and Pam. Go to sleep, Tisha.", zh: "上床睡覺吧,珍和吉姆。上床睡覺吧,泰德和潘。去睡覺吧,蒂莎。" },
+        { en: "Get in bed, Ned and Dad. Get in bed, Mom and Dad. Get in bed and go to sleep.", zh: "上床睡覺吧,奈德和爸爸。上床睡覺吧,媽媽和爸爸。上床睡覺,去睡覺吧。" }
+      ]
+    },
+    {
+      id: "u2reading1",
+      unit: 2,
+      title: "Reading 1: My Little Brother",
+      paragraphs: [
+        { en: "This is me, Sofia. I am 14. This is my little brother, Mateo. He is eight. He is growing up fast! We are looking at pictures. It's fun! I tell him his story.", zh: "這是我,蘇菲亞。我十四歲。這是我的弟弟,馬提歐。他八歲。他長大得好快!我們正在看照片。好好玩喔!我來跟你說他的故事。" },
+        { en: "In this picture you are one year old. You are a baby. I can hold you in my arms. You are very light. Look at your funny face!", zh: "在這張照片裡,你一歲。你是個小寶寶。我可以把你抱在懷裡。你好輕。看看你逗趣的臉!" },
+        { en: "In this picture you are three years old. You are on a tricycle. The tricycle has three wheels. You look very happy! You are having fun!", zh: "在這張照片裡,你三歲。你騎著三輪車。三輪車有三個輪子。你看起來好開心!玩得好盡興!" },
+        { en: `In this picture you are five years old. Now you can ride a bicycle. It has two wheels. Wow! You are not a baby anymore. I can't hold you in my arms. You are growing up fast!`, zh: "在這張照片裡,你五歲。現在你可以騎兩輪腳踏車了。它有兩個輪子。哇!你已經不是小寶寶了。我沒辦法把你抱在懷裡了。你長大得好快!" },
+        { en: "This is a picture of you now. You are eight years old. You can ride a horse! You are a big kid. Soon you will be a grown-up. But you will always be my little brother.", zh: "這是你現在的照片。你八歲了。你會騎馬了!你是個大孩子了。很快你就會長大成人。但你永遠都會是我的弟弟。" }
+      ]
+    },
+    {
+      id: "u2reading2",
+      unit: 2,
+      title: "Reading 2: The Ugly Duckling",
+      paragraphs: [
+        { en: `Mama Duck sits on her nest, keeping her eggs warm. At last, the eggs crack open, and little ducklings come out. "Peep, peep, peep!" they cry. "Are you all out?" Mama Duck asks.`, zh: "鴨媽媽坐在窩裡，讓蛋保持溫暖。終於，蛋殼裂開了，小鴨寶寶們出來了。「啾、啾、啾!」牠們叫著。「你們都出來了嗎?」鴨媽媽問道。" },
+        { en: "She checks her nest to find that there is one egg left. It is big! Mama Duck sits on her nest again, when suddenly, the egg cracks. Out comes a BIG duckling. \"PEEP!\" Mama Duck stares at him. He does not look like the others.", zh: "牠檢查窩裡，發現還剩下一顆蛋。這顆蛋好大!鴨媽媽又坐回窩裡，突然間，蛋裂開了。跑出來一隻好大的小鴨。「啾!」鴨媽媽盯著牠看。牠看起來跟其他小鴨不一樣。" },
+        { en: `Mama Duck takes her ducklings to the farm. "What pretty little chicks!" cry the geese. But they do not like the big duckling. "He is ugly," they say; "we do not want him here!"`, zh: "鴨媽媽帶著小鴨們去農場。「多可愛的小雞啊!」鵝群叫道。但牠們不喜歡那隻大鴨寶寶。「他好醜，」牠們說:「我們不要他在這裡!」" },
+        { en: `The duckling is sad. Even his brothers and sisters are not kind to him. "Go away!" his sisters snap. "You are ugly!" The poor duckling does not know what to do. And so he runs away.`, zh: "小鴨很傷心。就連牠的兄弟姊妹也對牠不友善。「走開!」牠的姊妹們厲聲說道。「你好醜!」可憐的小鴨不知道該怎麼辦，於是牠跑走了。" },
+        { en: "Fall comes and goes, and soon winter chills the air. The poor duckling shivers, cold and alone.", zh: "秋天來了又去，冬天很快就讓空氣變冷了。可憐的小鴨又冷又孤單地發抖著。" },
+        { en: `Spring brings the sun's warmth, turning the trees green. The duckling looks around and sees a swan. "How beautiful!" he cries. "I want to be like him." The duckling stretches his neck and bends his head down. "Oh! What is that in the water?"`, zh: "春天帶來了溫暖的陽光，把樹木都染綠了。小鴨環顧四周，看到一隻天鵝。「好美啊!」牠喊道。「我想要變得像牠一樣。」小鴨伸長脖子，低下頭。「噢!水裡的那是什麼?」" },
+        { en: `He is not ugly. He is not a duckling. He is a swan! Other swans are his friends. People watch him swim, and children throw bread to him. He hears them say, "The new swan is the most beautiful of all." At last he belongs.`, zh: "牠並不醜。牠也不是一隻小鴨。牠是一隻天鵝!其他天鵝都是牠的朋友。人們看著牠游泳，小朋友們丟麵包給牠吃。牠聽到大家說:「這隻新來的天鵝是最美的。」牠終於找到了屬於自己的地方。" }
+      ]
+    },
+    {
+      id: "u2reading3",
+      unit: 2,
+      title: "Reading 3: Fun on a Hot Day",
+      paragraphs: [
+        { en: "Mom: Look, the sun is up. This will be another hot day. Rosa: Not another hot day! I do not like the heat. Joe: I don't, either. There is nothing to do when it is so hot.", zh: "媽媽:你看，太陽出來了。今天又會是個大熱天。蘿莎:又是大熱天!我不喜歡這麼熱。喬:我也是。天氣這麼熱，什麼事都不能做。" },
+        { en: "Mom: It will be too hot to go outside today. We will have to stay indoors. We will find things to do at home. Rosa: I do not want to stay home another day! I want to get out of the house. Joe: What else can we do when it is so hot, Rosa? It's no fun to be outside in this heat.", zh: "媽媽:今天太熱了，不能出門。我們得待在室內。我們會在家裡找些事做。蘿莎:我不想再多待一天在家裡!我想要離開這個房子。喬:天氣這麼熱，蘿莎，我們還能做什麼呢?在這種高溫下待在外面一點也不好玩。" },
+        { en: "Rosa: What about Uncle Jake? He has a pool. The water in the pool is cool. Will Uncle Jake let us swim in his pool? Mom: That's a great idea, Rosa. I'm sure your uncle would love to have you visit. Joe: I will call Uncle Jake to ask him if we can swim in his pool.", zh: "蘿莎:傑克叔叔怎麼樣?他有一個游泳池。池裡的水很涼。傑克叔叔會讓我們去他的泳池游泳嗎?媽媽:這是個好主意，蘿莎。我相信你們的叔叔一定很樂意你們去拜訪。喬:我會打電話給傑克叔叔，問他我們能不能去他的泳池游泳。" },
+        { en: "Mom: I bet he will invite you. Joe: Uncle Jake invited us. We can swim in his pool! Rosa: Hooray! We don't have to stay at home another day! Mom: I will take you over to Uncle Jake's. You will have a wonderful time at his place.", zh: "媽媽:我猜他會邀請你們的。喬:傑克叔叔邀請我們了。我們可以去他的泳池游泳!蘿莎:太好了!我們不用再多待一天在家裡了!媽媽:我會帶你們去傑克叔叔家。你們在那裡一定會玩得很開心。" },
+        { en: "Joe: Look, the sun is hot out there. But we are lucky. We are cool in the pool. Rosa: If tomorrow is another hot day, I hope Uncle Jake will invite us to come swimming in his pool again!", zh: "喬:你看，外面的太陽好熱。但我們很幸運。我們在泳池裡很涼快。蘿莎:如果明天又是個大熱天，我希望傑克叔叔會再邀請我們去他的泳池游泳!" }
+      ]
+    }
+  ];
+
+  // Same 150 words as vocab.html's WORDS list (English forms only), kept in
+  // sync manually. Used to bold/color words the child has already studied.
+  const VOCAB_WORDS = ["sing","wash","clean","chore","give","feel","hurt","parents","happy","sad","hungry","thirsty","angry","bored","dizzy","block","black","flag","flap","globe","glove","plum","plate","external","pattern","children","bottle","nap","yellow","five","own","house","apartment","scared","sunshine","tissue","watch","glasses","mirror","wallet","sled","slide","bride","brave","crab","crib","frog","freeze","skin","young","townhouse","steps","light","hold","funny","year","grown-up","cry","smartphone","toothbrush","tablet","plastic","rubber","metal","glass","drum","dragon","grape","grass","truck","trap","smile","smoke","diet","exercise","left","away","people","beautiful","swan","stay","thing","place","pasta","steak","pancake","noodle","curry","sushi","stew","snore","spin","space","mask","jump","fast","nest","skunk","meal","germ","idea","heat","pool","cool","special","laugh","family","beach","seed","plant","grow","doctor","firefighter","teacher","driver","pink","wink","chin","chop","shell","ship","thin","thick","desert","environment","baseball","tree","roost","beehive","horse","down","kick","soccer","collector","fire station","farmer","librarian","hospital","school","nurse","whale","lunch","munch","fish","dish","king","long","habitat","shelter"];
+
+  const VOCAB_WORD_RE = (() => {
+    const unique = Array.from(new Set(VOCAB_WORDS.map((w) => w.toLowerCase())));
+    unique.sort((a, b) => b.length - a.length); // longest first, so "fire station" wins over any shorter overlap
+    const escaped = unique.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    return new RegExp("\\b(" + escaped.join("|") + ")\\b", "gi");
+  })();
+
+  function highlightVocab(text) {
+    return text.replace(VOCAB_WORD_RE, '<span class="vocab-word">$&</span>');
+  }
+
+  const lessonSelect = document.getElementById("lessonSelect");
+  const lessonTitle = document.getElementById("lessonTitle");
+  const paragraphsEl = document.getElementById("paragraphs");
+  const playAllBtn = document.getElementById("playAllBtn");
+  const rateGroup = document.getElementById("rateGroup");
+
+  let currentLesson = LESSONS[0];
+
+  const RATES = [
+    { label: "0.5x", value: 0.5 },
+    { label: "0.75x", value: 0.75 },
+    { label: "正常", value: 0.92 }
+  ];
+  let currentRate = 0.92;
+
+  function renderRateGroup() {
+    rateGroup.innerHTML = "";
+    RATES.forEach(({ label, value }) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = label;
+      btn.dataset.rate = value;
+      btn.className = "rate-btn flex-1 rounded-xl border-2 px-2 py-2 text-sm font-bold transition " +
+        (value === currentRate
+          ? "bg-amber-500 border-amber-500 text-white"
+          : "bg-white border-amber-200 text-amber-700 hover:bg-amber-50");
+      btn.addEventListener("click", () => {
+        currentRate = value;
+        renderRateGroup();
+      });
+      rateGroup.appendChild(btn);
+    });
+  }
+
+  // Prefer higher-quality/natural-sounding English voices over the OS default,
+  // which tends to sound flat and robotic.
+  let cachedVoices = [];
+  function loadVoices() {
+    cachedVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  }
+  if ("speechSynthesis" in window) {
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+
+  function pickBestVoice() {
+    const enVoices = cachedVoices.filter((v) => v.lang && v.lang.toLowerCase().startsWith("en"));
+    if (!enVoices.length) return null;
+    const score = (v) => {
+      const name = v.name.toLowerCase();
+      let s = 0;
+      if (v.lang === "en-US") s += 2;
+      if (/natural|neural|online|premium|enhanced/.test(name)) s += 5;
+      if (/google/.test(name)) s += 3;
+      return s;
+    };
+    return enVoices.slice().sort((a, b) => score(b) - score(a))[0];
+  }
+
+  function speak(text, onEnd) {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "en-US";
+    utter.rate = currentRate;
+    utter.pitch = 1.05;
+    const voice = pickBestVoice();
+    if (voice) utter.voice = voice;
+    if (onEnd) utter.onend = onEnd;
+    window.speechSynthesis.speak(utter);
+  }
+
+  function renderLesson(lesson) {
+    currentLesson = lesson;
+    lessonTitle.textContent = lesson.title;
+    paragraphsEl.innerHTML = "";
+    lesson.paragraphs.forEach(({ en, zh }) => {
+      const btn = document.createElement("button");
+      btn.className = "para-btn w-full text-left rounded-2xl border-2 border-slate-200 hover:border-amber-300 bg-slate-50 hover:bg-amber-50 px-4 py-3 transition";
+      btn.innerHTML = `
+        <span class="block text-slate-700 text-base leading-relaxed">${highlightVocab(en)}</span>
+        <span class="block text-slate-400 text-sm leading-relaxed mt-1">${zh}</span>
+      `;
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".para-btn").forEach((b) => b.classList.remove("playing"));
+        btn.classList.add("playing");
+        speak(en, () => btn.classList.remove("playing"));
+      });
+      paragraphsEl.appendChild(btn);
+    });
+  }
+
+  function renderLessonOptions() {
+    lessonSelect.innerHTML = "";
+    let currentGroup = null;
+    LESSONS.forEach((lesson) => {
+      if (!currentGroup || currentGroup.dataset.unit !== String(lesson.unit)) {
+        currentGroup = document.createElement("optgroup");
+        currentGroup.label = "Unit " + lesson.unit;
+        currentGroup.dataset.unit = String(lesson.unit);
+        lessonSelect.appendChild(currentGroup);
+      }
+      const opt = document.createElement("option");
+      opt.value = lesson.id;
+      opt.textContent = lesson.title;
+      currentGroup.appendChild(opt);
+    });
+  }
+
+  lessonSelect.addEventListener("change", () => {
+    const lesson = LESSONS.find((l) => l.id === lessonSelect.value);
+    if (lesson) renderLesson(lesson);
+  });
+
+  playAllBtn.addEventListener("click", () => {
+    const buttons = Array.from(document.querySelectorAll(".para-btn"));
+    let i = 0;
+    function next() {
+      buttons.forEach((b) => b.classList.remove("playing"));
+      if (i >= currentLesson.paragraphs.length) return;
+      const btn = buttons[i];
+      btn.classList.add("playing");
+      speak(currentLesson.paragraphs[i].en, () => {
+        i++;
+        next();
+      });
+    }
+    next();
+  });
+
+  renderLessonOptions();
+  renderRateGroup();
+  renderLesson(currentLesson);
+</script>
+
+</body>
+</html>

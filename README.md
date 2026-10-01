@@ -1,11 +1,17 @@
-# 英文單字練習 - 國小二年級
+# 英文學習主頁 - 國小二年級
 
-一個給國小二年級小朋友使用的英文單字練習工具，單一 HTML 檔案，開啟即可使用。
+給國小二年級小朋友使用的英文學習工具，純靜態 HTML（無建置流程），開啟即可使用。首頁 `index.html` 是入口，分成三個子頁面：**150單字學習**（`vocab.html`）、**文法內容**（`grammar.html`，準備中）、**課文學習**（`reading.html`）。
 
 🔗 **線上使用：[https://kids-vocab-beige.vercel.app/](https://kids-vocab-beige.vercel.app/)**
 （GitHub Pages 鏡像：<https://jerryl0101.github.io/kids-english-vocab/>）
 
-## 功能
+## 頁面說明
+
+### 首頁（`index.html`）
+
+三張卡片分別連到單字、文法、課文三個子頁面。
+
+### 150單字學習（`vocab.html`）
 
 - 內建 150 個單字，中文附上直式注音（含正確的聲調標示，二三四聲標在右側、輕聲點標在上方）
 - 顯示英文首字母提示（如 `c _ _ _`）
@@ -19,11 +25,18 @@
 - 上述「出題範圍」「隨機出題」「聽力測驗」三者互相獨立、可任意組合；「只複習星星單字」開啟時則會改用已標記的單字集合，忽略目前設定的範圍
 - **單字總表 📋**：標題區的按鈕可一鍵全螢幕瀏覽全部 150 個字（題號＋英文＋中文，不含注音），搜尋框可用中文、英文或題號篩選，已標記的單字會顯示 ⭐；按「返回測驗」或 Esc 關閉，測驗進度不受影響
 
+### 課文學習（`reading.html`）
+
+逐課收錄課本課文（Unit 1：Reading 1 Dan and Gramps、Reading 2 Children Can Learn、Reading 3 We Live in a Home；Unit 2：Reading 1 My Little Brother、Reading 2 The Ugly Duckling、Reading 3 Fun on a Hot Day），每段課文下方附中文翻譯。下拉選單依 Unit 分組，可選課，點一段課文會用美式發音朗讀該段，也有「完整朗讀」按鈕依序唸完整課。課文中出現的字如果也在 150 單字表裡，會自動變成粗體＋玫瑰紅標示出來。上方有語速切換按鈕（0.5x／0.75x／正常），切換後點課文或按「完整朗讀」都會套用選定的語速。
+
+### 文法內容（`grammar.html`）
+
+目前是佔位頁面，尚未有內容。
+
 ## 技術
 
-- Vite 不需要，純 **單一 HTML 檔案**
+- Vite 不需要，純 **靜態 HTML 檔案**（無框架、無建置流程）
 - [Tailwind CSS](https://tailwindcss.com/)（CDN 版本）
-- 原生 JavaScript（無框架、無建置流程）
 - [Web Speech API](https://developer.mozilla.org/docs/Web/API/Web_Speech_API) 做語音朗讀
 
 ## 使用方式
@@ -32,7 +45,7 @@
 
 ## 修改單字資料
 
-所有單字資料都在 `index.html` 內的 `WORDS` 陣列中，每一筆包含：
+所有單字資料都在 `vocab.html` 內的 `WORDS` 陣列中，每一筆包含：
 
 ```js
 { en: "sing", zh: "唱歌", ruby: "<ruby>唱<rt>ㄔㄤˋ</rt></ruby><ruby>歌<rt>ㄍㄜ</rt></ruby>", emoji: "🎤" }
@@ -44,3 +57,15 @@
 - `emoji`：示意插圖用的表情符號
 
 單字在陣列中的順序就是「隨機出題」裡的題號（從 1 開始算），所以新增或調整單字時要注意順序異動會影響題號範圍的對應。
+
+## 新增課文
+
+`reading.html` 內的 `LESSONS` 陣列，每一課一筆：
+
+```js
+{ id: "u3reading1", unit: 3, title: "Reading 1: ...", paragraphs: [{ en: "...", zh: "..." }, { en: "...", zh: "..." }] }
+```
+
+`unit` 決定下拉選單的分組（會顯示成「Unit N」），新增一筆就會自動出現在對應分組裡。
+
+`reading.html` 內另有一份 `VOCAB_WORDS`（150 單字的英文清單），用來判斷課文裡哪些字要標色，是從 `vocab.html` 的 `WORDS` 手動複製過來的純字串陣列 —— 如果之後調整了 150 單字表，記得同步更新這份清單。
