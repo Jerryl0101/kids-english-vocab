@@ -1,6 +1,6 @@
 # 英文學習主頁 - 國小二年級
 
-給國小二年級小朋友使用的英文學習工具，純靜態 HTML（無建置流程），開啟即可使用。首頁 `index.html` 是入口，分成三個子頁面：**150單字學習**（`vocab.html`）、**文法內容**（`grammar.html`，準備中）、**課文學習**（`reading.html`）。
+給國小二年級小朋友使用的英文學習工具，純靜態 HTML（無建置流程），開啟即可使用。首頁 `index.html` 是入口，分成三個子頁面：**150單字學習**（`vocab.html`）、**文法內容**（`grammar.html`）、**課文學習**（`reading.html`）。
 
 🔗 **線上使用：[https://kids-vocab-beige.vercel.app/](https://kids-vocab-beige.vercel.app/)**
 （GitHub Pages 鏡像：<https://jerryl0101.github.io/kids-english-vocab/>）
@@ -31,7 +31,11 @@
 
 ### 文法內容（`grammar.html`）
 
-目前是佔位頁面，尚未有內容。
+收錄老師講義裡的文法重點整理，下拉選單依教材分組：
+- **Cornerstone WB**：1-1 Dan and Gramps（Can + Verb）、1-2 Children Can Learn（現在簡單式）、1-3 We Live in a Home（Be 動詞）
+- **English Starship 2**：Unit 1 Feelings（be 動詞＋形容詞、感受問句）、Unit 2 My Things（have/has）
+
+每個單元顯示該課的必背單字、自然發音（如有）、文法規則＋例句（中英對照），例句可以點擊朗讀。部分單元還有 CLIL 科學單字、Daily English 常用對話。
 
 ## 技術
 
@@ -69,3 +73,24 @@
 `unit` 決定下拉選單的分組（會顯示成「Unit N」），新增一筆就會自動出現在對應分組裡。
 
 `reading.html` 內另有一份 `VOCAB_WORDS`（150 單字的英文清單），用來判斷課文裡哪些字要標色，是從 `vocab.html` 的 `WORDS` 手動複製過來的純字串陣列 —— 如果之後調整了 150 單字表，記得同步更新這份清單。
+
+## 新增文法重點
+
+`grammar.html` 內的 `GRAMMAR_UNITS` 陣列，每個單元一筆，至少要有 `vocab` 和 `grammar`，其餘（`phonics`／`clil`／`daily`）視該課內容選用：
+
+```js
+{
+  id: "starship2-unit3",
+  book: "English Starship 2",
+  title: "Unit 3 ...",
+  vocab: [{ en: "...", zh: "..." }],
+  grammar: {
+    title: "文法名稱",
+    points: [
+      { rule: "規則說明", examples: [{ en: "...", zh: "..." }], note: "補充說明（選用）" }
+    ]
+  }
+}
+```
+
+`book` 決定下拉選單的分組，新增一筆就會自動出現在對應分組裡。

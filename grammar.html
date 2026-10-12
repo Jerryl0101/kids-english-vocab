@@ -13,20 +13,404 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="文法內容" />
 <script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html, body { overflow-x: hidden; max-width: 100%; }
+  .ex-btn.playing { background-color: rgb(236 253 245); border-color: rgb(16 185 129); }
+  .word-card { break-inside: avoid; }
+</style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-sky-100 via-yellow-50 to-pink-100 flex flex-col items-center justify-center px-4 py-6 font-sans">
+<body class="min-h-screen bg-gradient-to-br from-sky-100 via-yellow-50 to-pink-100 flex flex-col items-center px-3 py-4 font-sans">
 
-  <header class="text-center mb-4">
+  <header class="text-center mb-3 w-full max-w-2xl">
     <a href="index.html" class="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-indigo-500 hover:text-indigo-700 mb-1">← 回首頁</a>
     <h1 class="text-2xl sm:text-3xl font-extrabold text-emerald-600 drop-shadow-sm">📐 文法內容 📐</h1>
+    <p class="text-slate-500 mt-1 text-xs sm:text-sm">點例句可以聽發音！</p>
   </header>
 
-  <main class="w-full max-w-xl bg-white rounded-3xl shadow-md border-4 border-emerald-200 p-8 text-center">
-    <p class="text-5xl mb-3">🚧</p>
-    <p class="text-slate-500 text-sm sm:text-base">文法內容準備中，之後會陸續加進來！</p>
-  </main>
+  <div class="w-full max-w-2xl flex items-center gap-2 mb-3">
+    <label class="text-sm font-bold text-slate-600 shrink-0">選課：</label>
+    <select id="unitSelect" class="flex-1 rounded-xl border-2 border-emerald-200 px-3 py-2 text-sm font-bold text-emerald-700 bg-white"></select>
+  </div>
+
+  <main id="unitContent" class="w-full max-w-2xl space-y-4"></main>
 
   <footer class="mt-6 text-xs text-slate-400">為國小二年級小朋友製作 💛</footer>
+
+<script>
+  // Grammar point summaries transcribed from teacher worksheets.
+  // book groups entries in the dropdown (one optgroup per book).
+  const GRAMMAR_UNITS = [
+    {
+      id: "cornerstone-1-1",
+      book: "Cornerstone WB",
+      title: "1-1 Dan and Gramps",
+      vocab: [
+        { en: "sing", zh: "唱歌" }, { en: "are", zh: "是" }, { en: "buy", zh: "買" }, { en: "eat", zh: "吃" },
+        { en: "wash", zh: "清洗" }, { en: "clean", zh: "清潔,乾淨的" }, { en: "chore", zh: "家務" }
+      ],
+      phonics: {
+        label: "自然發音：Short a（短母音 a）；Consonants（子音）",
+        words: [
+          { en: "hand", zh: "手" }, { en: "lamp", zh: "燈" }, { en: "cat", zh: "貓" }, { en: "hat", zh: "(有邊的)帽子" },
+          { en: "fan", zh: "風扇" }, { en: "ban", zh: "禁止" }, { en: "ant", zh: "螞蟻" }, { en: "bat", zh: "蝙蝠" },
+          { en: "fat", zh: "胖的" }, { en: "sat", zh: "坐(sit 過去式)" }, { en: "sad", zh: "傷心的" }, { en: "bad", zh: "壞的,不好的" },
+          { en: "fad", zh: "一時的流行" }, { en: "back", zh: "背部" }, { en: "sack", zh: "大布袋" }, { en: "act", zh: "行動" }
+        ]
+      },
+      grammar: {
+        title: "Can + Verb（Can + 原型動詞）",
+        zh: "必會",
+        points: [
+          {
+            rule: "can + verb",
+            examples: [{ en: "She can play basketball.", zh: "她會打籃球。" }]
+          },
+          {
+            rule: "cannot / can't + verb",
+            examples: [{ en: "He can't / cannot ride a bike.", zh: "他不會騎腳踏車。" }]
+          },
+          {
+            rule: "can + subject（主詞）+ verb（動詞）→ 問句",
+            examples: [
+              { en: "Can she play? Yes, she can.", zh: "她會打球嗎？會。" },
+              { en: "Can he play? No, he can't.", zh: "他會打球嗎？不會。" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      id: "cornerstone-1-2",
+      book: "Cornerstone WB",
+      title: "1-2 Children Can Learn",
+      vocab: [
+        { en: "give", zh: "給" }, { en: "big", zh: "大的" }, { en: "feel", zh: "感覺" }, { en: "hurt", zh: "受傷,疼痛" },
+        { en: "learn", zh: "學習" }, { en: "parents", zh: "父母" }, { en: "children", zh: "小孩(複數)" }
+      ],
+      phonics: {
+        label: "自然發音：Short e（短母音 e）；th",
+        words: [
+          { en: "math", zh: "數學" }, { en: "men", zh: "男人(man 複數)" }, { en: "bed", zh: "床" }, { en: "bath", zh: "浴缸,澡盆" },
+          { en: "hen", zh: "母雞" }, { en: "web", zh: "蜘蛛網" }, { en: "net", zh: "網" }, { en: "then", zh: "那時,然後" },
+          { en: "pen", zh: "筆" }
+        ]
+      },
+      grammar: {
+        title: "Simple Present（現在簡單式）",
+        zh: "必會",
+        points: [
+          {
+            rule: "he / she / it + 動詞 + s（第三人稱單數動詞 +s）",
+            examples: [{ en: "She rides her bike every day.", zh: "她每天騎她的腳踏車。" }]
+          },
+          {
+            rule: "動詞字尾是 ch, sh, s, x, z，加 -es",
+            examples: [{ en: "He teaches music.", zh: "他教音樂。" }]
+          },
+          {
+            rule: "否定句：does not / doesn't + 動詞",
+            examples: [{ en: "She does not (doesn't) play in the street.", zh: "她不在街上玩。" }]
+          },
+          {
+            rule: "Yes/No 問句（he, she, it）：does + 主詞 + 動詞",
+            examples: [{ en: "Does he sing? Yes, he does. / No, he doesn't.", zh: "他會唱歌嗎？會。／不會。" }]
+          }
+        ]
+      }
+    },
+    {
+      id: "cornerstone-1-3",
+      book: "Cornerstone WB",
+      title: "1-3 We Live in a Home",
+      vocab: [
+        { en: "yellow", zh: "黃色" }, { en: "five", zh: "五" }, { en: "does", zh: "做(do 的第三人稱單數)" }, { en: "own", zh: "自己的" },
+        { en: "house", zh: "房子" }, { en: "apartment", zh: "公寓" }, { en: "townhouse", zh: "聯排別墅" }
+      ],
+      phonics: {
+        label: "自然發音：Short i（短母音 i）；sh",
+        words: [
+          { en: "pin", zh: "大頭針" }, { en: "kite", zh: "風箏" }, { en: "pine", zh: "松樹" }, { en: "wig", zh: "假髮" },
+          { en: "bit", zh: "小塊,少量" }, { en: "bite", zh: "咬" }, { en: "fish", zh: "魚" }, { en: "fine", zh: "好的" },
+          { en: "ship", zh: "船" }, { en: "kick", zh: "踢" }, { en: "dig", zh: "挖" }, { en: "ill", zh: "生病的" }
+        ]
+      },
+      grammar: {
+        title: "Be Verbs（Be 動詞）",
+        zh: "必會",
+        points: [
+          {
+            rule: "Be verbs: am, is, are",
+            examples: [
+              { en: "I am a teacher.", zh: "我是一位老師。" },
+              { en: "He is Tom.", zh: "他是湯姆。" },
+              { en: "You are in class.", zh: "你在教室裡。" }
+            ],
+            note: "主詞對照：I → am；he / she / it → is；you / we / they → are"
+          },
+          {
+            rule: "否定句：am / is / are + not",
+            examples: [{ en: "Mike is not (isn't) a teacher.", zh: "麥克不是老師。" }],
+            note: "is not = isn't；are not = aren't"
+          },
+          {
+            rule: "問句：Where, When, What + am / is / are",
+            examples: [
+              { en: "Where am I?", zh: "我在哪裡？（詢問地點）" },
+              { en: "When is it?", zh: "現在是什麼時候？（詢問時間）" },
+              { en: "What are they?", zh: "它們是什麼？（詢問事物）" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      id: "starship2-unit1",
+      book: "English Starship 2",
+      title: "Unit 1 Feelings（感覺）",
+      vocab: [
+        { en: "happy", zh: "快樂的" }, { en: "sad", zh: "傷心的" }, { en: "hot", zh: "熱的" }, { en: "cold", zh: "冷的" },
+        { en: "hungry", zh: "餓的" }, { en: "thirsty", zh: "渴的" }, { en: "angry", zh: "生氣的" }, { en: "bored", zh: "無聊的" },
+        { en: "tired", zh: "疲勞的" }, { en: "dizzy", zh: "頭暈的" }, { en: "scared", zh: "害怕的" }, { en: "sleepy", zh: "睏倦的" },
+        { en: "excited", zh: "興奮的" }, { en: "surprised", zh: "驚訝的" }, { en: "tree", zh: "樹" }, { en: "sunshine", zh: "陽光" },
+        { en: "fire", zh: "火" }, { en: "cloud", zh: "雲" }, { en: "night", zh: "夜晚" }
+      ],
+      grammar: {
+        title: "be 動詞 + 形容詞（描述情緒／感受）",
+        zh: "必會",
+        points: [
+          {
+            rule: "肯定句與否定句",
+            examples: [
+              { en: "I'm happy.", zh: "我很快樂。" },
+              { en: "I'm not sad.", zh: "我不傷心。" },
+              { en: "He's happy. / She's happy.", zh: "他／她很快樂。" },
+              { en: "He isn't sad. / She isn't sad.", zh: "他／她不傷心。" }
+            ]
+          },
+          {
+            rule: "縮寫形式（Contractions）",
+            noAudio: true,
+            examples: [
+              { en: "I'm = I am", zh: "" },
+              { en: "He's = He is", zh: "" },
+              { en: "She's = She is", zh: "" },
+              { en: "isn't = is not", zh: "" }
+            ]
+          },
+          {
+            rule: "Yes/No 疑問句與簡答：詢問對方的感受（Are you + 形容詞?）",
+            examples: [{ en: "Are you scared? Yes, I am. / No, I'm not.", zh: "你會怕嗎？會。／不會。" }]
+          },
+          {
+            rule: "Yes/No 疑問句與簡答：詢問他／她的感受（Is he/she + 形容詞?）",
+            examples: [{ en: "Is he / she scared? Yes, he / she is. / No, he / she isn't.", zh: "他／她會怕嗎？會。／不會。" }]
+          }
+        ]
+      },
+      clil: {
+        label: "CLIL：Science（科學 - 顏色）",
+        words: [
+          { en: "color", zh: "顏色" }, { en: "green", zh: "綠色" }, { en: "calm", zh: "平靜的" }, { en: "yellow", zh: "黃色" },
+          { en: "gray", zh: "灰色" }, { en: "red", zh: "紅色" }, { en: "warm", zh: "溫暖的" }, { en: "black", zh: "黑色" }
+        ]
+      }
+    },
+    {
+      id: "starship2-unit2",
+      book: "English Starship 2",
+      title: "Unit 2 My Things（我的東西）",
+      vocab: [
+        { en: "a tissue", zh: "衛生紙" }, { en: "a watch", zh: "手錶" }, { en: "a comb", zh: "梳子" }, { en: "glasses", zh: "眼鏡" },
+        { en: "a mirror", zh: "鏡子" }, { en: "a wallet", zh: "錢包" }, { en: "earbuds", zh: "耳塞式耳機" }, { en: "a smartphone", zh: "智慧型手機" },
+        { en: "a lunch box", zh: "便當盒" }, { en: "an umbrella", zh: "雨傘" }, { en: "a toothbrush", zh: "牙刷" }, { en: "toothpaste", zh: "牙膏" },
+        { en: "a tablet", zh: "平板電腦" }, { en: "a comic book", zh: "漫畫" }, { en: "plastic", zh: "塑膠" }, { en: "rubber", zh: "橡膠" },
+        { en: "metal", zh: "金屬" }, { en: "glass", zh: "玻璃" }
+      ],
+      grammar: {
+        title: "have / has",
+        zh: "必會",
+        points: [
+          {
+            rule: "一般現在式問句與回答",
+            examples: [{ en: "What does he/she have? He/She has a comb.", zh: "他／她有什麼？他／她有一把梳子。" }]
+          },
+          {
+            rule: "Have / Has 的用法",
+            examples: [
+              { en: "I / You / We / They + have + 名詞 → I have a pencil. They have books.", zh: "我有一支鉛筆。他們有書。" },
+              { en: "He / She + has + 名詞 → He has a comb. She has a lunch box.", zh: "他有一把梳子。她有一個便當盒。" }
+            ]
+          },
+          {
+            rule: "用 Does 問 He / She",
+            examples: [{ en: "Does he have a lunch box?", zh: "他有便當盒嗎？" }],
+            note: "注意：有了 does 之後，後面的 have 不可以變成 has。"
+          },
+          {
+            rule: "Yes/No 的簡短回答",
+            examples: [
+              { en: "Yes, he/she does.", zh: "是的，他／她有。" },
+              { en: "No, he/she doesn't.", zh: "不，他／她沒有。" }
+            ]
+          }
+        ]
+      },
+      daily: {
+        label: "Daily English（日常英語）",
+        qa: [
+          { en: "May I borrow your pencil? = Can you lend me your pencil?", zh: "我可以借你的鉛筆嗎？" },
+          { en: "Sure! Here you are.", zh: "當然可以！給你。" }
+        ]
+      },
+      clil: {
+        label: "CLIL：Science（科學 - 材質）",
+        words: [
+          { en: "be made of", zh: "由…製成" }, { en: "material", zh: "材料／材質" }, { en: "light", zh: "輕的" }, { en: "balloon", zh: "氣球" },
+          { en: "rain boots", zh: "雨靴" }, { en: "soft", zh: "柔軟的" }, { en: "also", zh: "也／而且" }, { en: "stretch", zh: "伸展" },
+          { en: "hard", zh: "硬的" }, { en: "strong", zh: "堅固的" }, { en: "shiny", zh: "發亮的" }, { en: "see through", zh: "透明的" }
+        ]
+      }
+    }
+  ];
+
+  const unitSelect = document.getElementById("unitSelect");
+  const unitContent = document.getElementById("unitContent");
+
+  // Same natural-voice preference logic as reading.html.
+  let cachedVoices = [];
+  function loadVoices() {
+    cachedVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  }
+  if ("speechSynthesis" in window) {
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+
+  function pickBestVoice() {
+    const enVoices = cachedVoices.filter((v) => v.lang && v.lang.toLowerCase().startsWith("en"));
+    if (!enVoices.length) return null;
+    const score = (v) => {
+      const name = v.name.toLowerCase();
+      let s = 0;
+      if (v.lang === "en-US") s += 2;
+      if (/natural|neural|online|premium|enhanced/.test(name)) s += 5;
+      if (/google/.test(name)) s += 3;
+      return s;
+    };
+    return enVoices.slice().sort((a, b) => score(b) - score(a))[0];
+  }
+
+  function speak(text, onEnd) {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "en-US";
+    utter.rate = 0.92;
+    utter.pitch = 1.05;
+    const voice = pickBestVoice();
+    if (voice) utter.voice = voice;
+    if (onEnd) utter.onend = onEnd;
+    window.speechSynthesis.speak(utter);
+  }
+
+  function wordGrid(words) {
+    return `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">${words.map(({ en, zh }) => {
+      const safeEn = en.replace(/"/g, "&quot;");
+      return `
+      <button type="button" class="word-card ex-btn w-full text-left rounded-xl border-2 border-slate-200 hover:border-emerald-300 bg-slate-50 hover:bg-emerald-50 px-3 py-2 transition" data-text="${safeEn}">
+        <div class="font-extrabold text-emerald-700 text-sm">🔊 ${en}</div>
+        <div class="text-slate-400 text-xs mt-0.5">${zh}</div>
+      </button>
+    `;
+    }).join("")}</div>`;
+  }
+
+  function exampleButton(en, zh, noAudio) {
+    if (noAudio) {
+      return `
+        <div class="w-full text-left rounded-xl border-2 border-slate-200 bg-white px-3 py-2">
+          <span class="block text-slate-700 text-sm leading-relaxed">${en}</span>
+          ${zh ? `<span class="block text-slate-400 text-xs leading-relaxed mt-0.5">${zh}</span>` : ""}
+        </div>
+      `;
+    }
+    const safeEn = en.replace(/"/g, "&quot;");
+    return `
+      <button type="button" class="ex-btn w-full text-left rounded-xl border-2 border-slate-200 hover:border-emerald-300 bg-white hover:bg-emerald-50 px-3 py-2 transition" data-text="${safeEn}">
+        <span class="block text-slate-700 text-sm leading-relaxed">🔊 ${en}</span>
+        ${zh ? `<span class="block text-slate-400 text-xs leading-relaxed mt-0.5">${zh}</span>` : ""}
+      </button>
+    `;
+  }
+
+  function renderUnit(unit) {
+    let html = "";
+
+    html += `<section class="bg-white rounded-3xl shadow-md border-4 border-emerald-200 p-4 sm:p-6">
+      <h2 class="text-xl font-extrabold text-emerald-600 mb-3">${unit.title}</h2>`;
+
+    html += `<h3 class="font-bold text-slate-600 text-sm mb-2">📖 單字</h3>${wordGrid(unit.vocab)}`;
+
+    if (unit.phonics) {
+      html += `<h3 class="font-bold text-slate-600 text-sm mt-4 mb-2">🔤 ${unit.phonics.label}</h3>${wordGrid(unit.phonics.words)}`;
+    }
+
+    html += `<h3 class="font-bold text-slate-600 text-sm mt-4 mb-2">✏️ 文法：${unit.grammar.title}</h3>`;
+    html += `<div class="space-y-3">`;
+    unit.grammar.points.forEach((point) => {
+      html += `<div class="rounded-2xl border-2 border-emerald-100 bg-emerald-50/40 p-3">
+        <div class="font-bold text-emerald-700 text-sm mb-2">${point.rule}</div>
+        <div class="space-y-1.5">${point.examples.map((ex) => exampleButton(ex.en, ex.zh, point.noAudio)).join("")}</div>
+        ${point.note ? `<div class="text-xs text-slate-400 mt-2">${point.note}</div>` : ""}
+      </div>`;
+    });
+    html += `</div>`;
+
+    if (unit.daily) {
+      html += `<h3 class="font-bold text-slate-600 text-sm mt-4 mb-2">💬 ${unit.daily.label}</h3>`;
+      html += `<div class="space-y-1.5">${unit.daily.qa.map((qa) => exampleButton(qa.en, qa.zh)).join("")}</div>`;
+    }
+
+    if (unit.clil) {
+      html += `<h3 class="font-bold text-slate-600 text-sm mt-4 mb-2">🔬 ${unit.clil.label}</h3>${wordGrid(unit.clil.words)}`;
+    }
+
+    html += `</section>`;
+    unitContent.innerHTML = html;
+
+    unitContent.querySelectorAll(".ex-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        unitContent.querySelectorAll(".ex-btn").forEach((b) => b.classList.remove("playing"));
+        btn.classList.add("playing");
+        speak(btn.dataset.text, () => btn.classList.remove("playing"));
+      });
+    });
+  }
+
+  function renderUnitOptions() {
+    unitSelect.innerHTML = "";
+    let currentGroup = null;
+    GRAMMAR_UNITS.forEach((unit) => {
+      if (!currentGroup || currentGroup.dataset.book !== unit.book) {
+        currentGroup = document.createElement("optgroup");
+        currentGroup.label = unit.book;
+        currentGroup.dataset.book = unit.book;
+        unitSelect.appendChild(currentGroup);
+      }
+      const opt = document.createElement("option");
+      opt.value = unit.id;
+      opt.textContent = unit.title;
+      currentGroup.appendChild(opt);
+    });
+  }
+
+  unitSelect.addEventListener("change", () => {
+    const unit = GRAMMAR_UNITS.find((u) => u.id === unitSelect.value);
+    if (unit) renderUnit(unit);
+  });
+
+  renderUnitOptions();
+  renderUnit(GRAMMAR_UNITS[0]);
+</script>
 
 </body>
 </html>
