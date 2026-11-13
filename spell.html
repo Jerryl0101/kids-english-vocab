@@ -56,6 +56,14 @@
   @keyframes catch { 0% { transform: scale(.2) rotate(-20deg); opacity: 0; } 60% { transform: scale(1.15) rotate(6deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
   .catch { animation: catch .8s ease-out; }
   .hp { transition: width .4s; }
+  .xpbar { transition: width 1.2s ease-out; }
+  .wobble { animation: giggle 1.4s ease-in-out infinite; }
+  @keyframes hop { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-16px) rotate(-8deg); } }
+  .hop { animation: hop .45s; }
+  @keyframes xpup { 0% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -46px); opacity: 0; } }
+  .xpf { position: absolute; left: 50%; top: 0; font-weight: 900; font-size: 1.2rem; color: #16a34a; white-space: nowrap; animation: xpup 1s forwards; pointer-events: none; }
+  @keyframes glow { 0%,100% { filter: brightness(1); } 50% { filter: brightness(2.6) saturate(.3); } }
+  .evshake > svg { animation: shake .4s 4, glow .55s 3; }
   .silhouette svg { filter: brightness(0) opacity(.18); }
   #confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 60; }
   .cf { position: absolute; top: -10%; animation: fall 2.2s ease-in forwards; }
@@ -72,7 +80,25 @@
     <button id="dexBtn" class="bg-white rounded-full px-4 py-2 shadow font-bold text-indigo-600 border-2 border-indigo-200">📖 怪獸圖鑑 <span id="dexCount"></span></button>
   </div>
   <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-600 text-center">⚔️ 怪獸訓練家・拼字闖關</h1>
-  <p class="text-slate-500 mt-2 mb-5 text-center">拼對單字攻擊怪獸，打倒就能收服牠！</p>
+  <p class="text-slate-500 mt-2 mb-5 text-center">和夥伴一起拼單字打怪獸，升級、進化、孵出新怪獸！</p>
+
+  <div class="w-full max-w-xl grid grid-cols-2 gap-3 mb-4">
+    <div class="bg-white rounded-3xl shadow-md border-4 border-emerald-200 p-3 text-center flex flex-col items-center">
+      <p class="text-sm font-bold text-emerald-600">🤝 我的夥伴</p>
+      <div id="hPartner" class="flex justify-center"></div>
+      <p id="hPName" class="font-extrabold text-slate-700 leading-tight"></p>
+      <div class="w-full h-3 bg-slate-100 rounded-full mt-1 overflow-hidden border border-emerald-300"><div id="hXp" class="h-full bg-emerald-400" style="width:0"></div></div>
+      <p id="hXpText" class="text-xs text-slate-400 font-bold mt-0.5"></p>
+      <button id="pickPartner" class="mt-2 text-sm font-extrabold text-emerald-600 bg-emerald-50 border-2 border-emerald-200 rounded-xl px-3 py-1">換夥伴</button>
+    </div>
+    <div class="bg-white rounded-3xl shadow-md border-4 border-amber-200 p-3 text-center flex flex-col items-center">
+      <p class="text-sm font-bold text-amber-600">🥚 神秘的蛋</p>
+      <div id="hEgg" class="flex justify-center"></div>
+      <p id="hEggDots" class="text-xl tracking-widest"></p>
+      <p id="hEggText" class="text-xs text-slate-500 font-bold mt-1"></p>
+      <p id="hStreak" class="text-xs text-orange-500 font-extrabold mt-1"></p>
+    </div>
+  </div>
 
   <div class="w-full max-w-xl bg-white rounded-3xl shadow-md border-4 border-indigo-200 p-5 text-center">
     <p class="text-slate-500 font-bold">📅 下一次抽考</p>
@@ -100,15 +126,20 @@
     <span id="mistakes" class="font-bold text-slate-400"></span>
   </div>
 
-  <div class="w-full max-w-2xl flex items-end justify-center gap-4 mt-1">
+  <div class="w-full max-w-2xl flex items-end justify-center gap-2 sm:gap-4 mt-1">
+    <div id="pBox" class="relative text-center">
+      <div id="partner"></div>
+      <div id="pfx" class="absolute inset-0 pointer-events-none"></div>
+      <p id="pName" class="text-xs font-extrabold text-emerald-600 bg-emerald-50 rounded-full px-2"></p>
+    </div>
     <div class="relative text-center">
       <div id="monster" class="bob"></div>
       <div id="fx" class="absolute inset-0 pointer-events-none"></div>
-      <p id="mName" class="font-extrabold text-slate-600 -mt-1"></p>
+      <p id="mName" class="font-extrabold text-slate-600 -mt-1 text-sm sm:text-base"></p>
     </div>
     <div class="mb-6">
-      <div id="mSay" class="bg-white border-2 border-slate-600 rounded-2xl px-3 py-1 text-sm font-bold max-w-[11rem]"></div>
-      <div class="w-40 h-4 bg-slate-200 rounded-full mt-3 overflow-hidden border-2 border-slate-600"><div id="hp" class="hp h-full bg-rose-400" style="width:100%"></div></div>
+      <div id="mSay" class="bg-white border-2 border-slate-600 rounded-2xl px-3 py-1 text-sm font-bold max-w-[8.5rem] sm:max-w-[11rem]"></div>
+      <div class="w-32 sm:w-40 h-4 bg-slate-200 rounded-full mt-3 overflow-hidden border-2 border-slate-600"><div id="hp" class="hp h-full bg-rose-400" style="width:100%"></div></div>
       <p id="hpText" class="text-xs text-slate-500 mt-1 font-bold"></p>
     </div>
   </div>
@@ -133,11 +164,16 @@
 
 <!-- ── 結果 ── -->
 <section id="result" class="screen flex-col items-center justify-center px-4 py-6 min-h-screen text-center">
-  <p class="text-2xl font-extrabold text-indigo-600">🎉 收服成功！</p>
+  <p id="rTitle" class="text-2xl font-extrabold text-indigo-600"></p>
   <div id="rMonster" class="catch my-2"></div>
   <p id="rName" class="text-3xl font-extrabold text-slate-700"></p>
+  <div class="w-64 mt-2">
+    <div class="h-4 bg-slate-100 rounded-full overflow-hidden border-2 border-emerald-300"><div id="rXp" class="xpbar h-full bg-emerald-400" style="width:0"></div></div>
+    <p id="rXpText" class="text-emerald-600 font-extrabold mt-1"></p>
+  </div>
   <p id="rStars" class="text-5xl mt-2 tracking-widest"></p>
   <p id="rMsg" class="text-slate-500 mt-2 font-bold"></p>
+  <p id="rEgg" class="mt-2 font-extrabold text-amber-600"></p>
   <div id="rMissed" class="mt-3 max-w-md"></div>
   <div class="flex gap-3 mt-6">
     <button id="againBtn" class="bg-indigo-500 text-white font-extrabold rounded-2xl px-6 py-3 text-xl shadow-[0_5px_0_#4338ca]">再玩一次</button>
@@ -153,8 +189,16 @@
       <button id="dexClose" class="text-2xl px-2">✕</button>
     </div>
     <div id="dexGrid" class="grid grid-cols-3 sm:grid-cols-5 gap-3"></div>
-    <p class="text-sm text-slate-400 mt-3 text-center">每過一關就收服一隻怪獸，收集滿 10 隻吧！</p>
+    <p class="text-sm text-slate-400 mt-3 text-center">點一下已收服的怪獸，就能選牠當夥伴！<br>夥伴 Lv.5 和 Lv.10 會進化；每天完成一關幫蛋保暖，3 天就孵出新怪獸。</p>
   </div>
+</div>
+
+<!-- ── 進化／孵化 ── -->
+<div id="event" class="hidden fixed inset-0 z-50 bg-indigo-950 flex flex-col items-center justify-center text-center p-4">
+  <p id="evTitle" class="text-3xl font-extrabold text-white"></p>
+  <div id="evArt" class="my-4"></div>
+  <p id="evText" class="text-2xl font-extrabold text-yellow-200 min-h-[2rem]"></p>
+  <button id="evOk" class="invisible mt-6 bg-yellow-300 text-indigo-800 font-extrabold rounded-2xl px-8 py-3 text-xl shadow-[0_5px_0_#ca8a04]">太棒了！</button>
 </div>
 
 <script src="words.js"></script>
@@ -193,7 +237,41 @@
 
   const starred = new Set(load('kev-starred', []));   // word indices, shared with vocab.html
   const dex = load('kev-dex', {});                    // monster index → times caught
+  const pets = load('kev-pets', {});                  // monster index → total EXP
+  let egg = load('kev-egg', null);                    // { mi, days: ['YYYY-MM-DD', …] }
   let autoSpeak = load('kev-spell-autospeak', true);
+  const caughtList = () => MONSTERS.map((_, i) => i).filter(i => dex[i]);
+  let partner = load('kev-partner', null);
+  if (partner === null || !dex[partner]) partner = caughtList()[0] ?? null;
+
+  // ── 等級／進化 ──
+  const MAXLV = 10, EGG_DAYS = 3;
+  const need = (L) => 40 * L;                         // EXP from Lv.L to Lv.L+1
+  function lvOf(xp) { let L = 1; while (L < MAXLV && xp >= need(L)) { xp -= need(L); L++; } return { lv: L, into: xp, next: L < MAXLV ? need(L) : 0 }; }
+  const stageOf = (lv) => lv >= 10 ? 3 : lv >= 5 ? 2 : 1;
+  const PREFIX = ['', '', '超級', '傳說'];
+  const stageOfMi = (mi) => stageOf(lvOf(pets[mi] || 0).lv);
+  const pname = (mi) => PREFIX[stageOfMi(mi)] + MONSTERS[mi].name;
+  const mon = (mi, size, face) => monsterSvg(MONSTERS[mi], size, face, stageOfMi(mi));
+  function addXp(mi, amt) {
+    const b = lvOf(pets[mi] || 0).lv;
+    pets[mi] = (pets[mi] || 0) + amt;
+    save('kev-pets', pets);
+    const a = lvOf(pets[mi]).lv;
+    return { b, a, evolve: stageOf(a) > stageOf(b) };
+  }
+  const evolveEvent = (mi, b, a) => ({
+    title: '✨ 咦？夥伴發光了…',
+    before: monsterSvg(MONSTERS[mi], 190, 'happy', stageOf(b)),
+    after: monsterSvg(MONSTERS[mi], 190, 'happy', stageOf(a)),
+    text: `${PREFIX[stageOf(b)]}${MONSTERS[mi].name} 進化成 ${PREFIX[stageOf(a)]}${MONSTERS[mi].name} 了！`,
+  });
+  function ensureEgg() {
+    if (egg) return;
+    const un = MONSTERS.map((_, i) => i).filter(i => !dex[i]);
+    egg = { mi: un.length ? pick(un) : Math.floor(Math.random() * MONSTERS.length), days: [] };
+    save('kev-egg', egg);
+  }
 
   // ── 畫怪獸 ──
   function starPath(cx, cy, R, r) {
@@ -201,7 +279,18 @@
     for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r : R; d += `${i ? 'L' : 'M'}${(cx + rr * Math.cos(a)).toFixed(1)} ${(cy + rr * Math.sin(a)).toFixed(1)} `; }
     return d + 'Z';
   }
-  function monsterSvg(m, size, face = 'happy') {
+  function eggSvg(mi, size, crack = 0) {
+    const c = MONSTERS[mi].color, ink = '#333';
+    const spots = [[38, 38, 7], [62, 60, 9], [40, 74, 5], [64, 32, 5], [29, 58, 4]]
+      .map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}" stroke="${ink}" stroke-width="1.3"/>`).join('');
+    const line = (d) => `<path d="${d}" fill="none" stroke="${ink}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const cracks = (crack >= 1 ? line('M20 52 L30 58 L38 50 L46 58') : '') + (crack >= 2 ? line('M80 44 L72 51 L66 44 L58 53') : '');
+    return `<svg viewBox="0 0 100 100" width="${size}" height="${size}"><ellipse cx="50" cy="96" rx="24" ry="3.5" fill="#000" opacity=".1"/>
+      <path d="M50 8 C74 8 82 44 82 62 A32 32 0 0 1 18 62 C18 44 26 8 50 8 Z" fill="#FFFDF2" stroke="${ink}" stroke-width="3"/>${spots}${cracks}</svg>`;
+  }
+
+  // stage 1 = 原型, 2 = 超級（長翅膀）, 3 = 傳說（翅膀 + 皇冠 + 光環）
+  function monsterSvg(m, size, face = 'happy', stage = 1) {
     const c = m.color, ink = '#333';
     const mouth = face === 'ouch' ? '<ellipse cx="50" cy="73" rx="5" ry="4" fill="#333"/>'
       : `<path d="M43 70 Q50 77 57 70" fill="none" stroke="${ink}" stroke-width="2.5" stroke-linecap="round"/>`;
@@ -212,7 +301,13 @@
     const blush = `<ellipse cx="29" cy="68" rx="5" ry="3" fill="#FF7A9A" opacity=".6"/><ellipse cx="71" cy="68" rx="5" ry="3" fill="#FF7A9A" opacity=".6"/>`;
     const feet = `<ellipse cx="36" cy="92" rx="9" ry="5" fill="${c}" stroke="${ink}" stroke-width="2.5"/><ellipse cx="64" cy="92" rx="9" ry="5" fill="${c}" stroke="${ink}" stroke-width="2.5"/>`;
     const round = `<ellipse cx="50" cy="64" rx="33" ry="28" fill="${c}" stroke="${ink}" stroke-width="3"/>`;
-    const S = (body, top = '', back = '', noFeet) => `<svg viewBox="0 0 100 100" width="${size}" height="${size}">${back}${noFeet ? '' : feet}${body}${top}${eyes}${blush}${mouth}</svg>`;
+    const wing = `<path d="M22 58 C10 40 -4 42 -5 51 C1 52 2 57 -2 61 C4 62 5 67 1 71 C8 72 15 73 22 68 Z" fill="#fff" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>`;
+    const wings = stage >= 2 ? `${wing}<g transform="translate(100 0) scale(-1 1)">${wing}</g>` : '';
+    const aura = stage >= 3 ? `<circle cx="50" cy="52" r="60" fill="${c}" opacity=".3"/><circle cx="50" cy="52" r="48" fill="#FFF7C2" opacity=".55"/>` : '';
+    const crown = stage >= 3 ? `<path d="M37 4 L34 -11 L43 -4 L50 -15 L57 -4 L66 -11 L63 4 Z" fill="#FFD43B" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="-1" r="2.6" fill="#FF4F8B"/>`
+      + [[-4, 6, 6], [104, 22, 5], [100, 92, 6]].map(([x, y, r]) => `<path d="${starPath(x, y, r, r * 0.42)}" fill="#FFD43B" stroke="${ink}" stroke-width="1.2"/>`).join('') : '';
+    const vb = stage >= 2 ? '-12 -18 124 124' : '0 0 100 100';
+    const S = (body, top = '', back = '', noFeet) => `<svg viewBox="${vb}" width="${size}" height="${size}">${aura}${wings}${back}${noFeet ? '' : feet}${body}${top}${crown}${eyes}${blush}${mouth}</svg>`;
     switch (m.kind) {
       case 'flame': return S(round, `<path d="M50 38 C38 30 44 18 50 8 C52 18 62 20 58 30 C64 26 66 34 60 40 Z" fill="#FFC93C" stroke="${ink}" stroke-width="2.5"/>`);
       case 'drop': return S(`<path d="M50 14 C62 34 84 46 84 66 A34 28 0 0 1 16 66 C16 46 38 34 50 14 Z" fill="${c}" stroke="${ink}" stroke-width="3"/><ellipse cx="34" cy="44" rx="4" ry="7" fill="#fff" opacity=".7"/>`);
@@ -275,7 +370,15 @@
   const WEEK = '日一二三四五六';
   const dateLabel = (d) => { const [y, m, dd] = d.split('-').map(Number); return `${m}/${dd}（${WEEK[new Date(y, m - 1, dd).getDay()]}）`; };
   const rangeText = (s) => `第 ${s.lo}～${s.hi} 個單字${s.kind ? `・${s.kind}` : ''}`;
-  function todayStr() { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; }
+  const ds = (t) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  const todayStr = () => ds(new Date());
+  function streak() {
+    const days = new Set(load('kev-days', [])), d = new Date();
+    if (!days.has(ds(d))) d.setDate(d.getDate() - 1);
+    let n = 0;
+    while (days.has(ds(d))) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
   const nextTest = () => SCHEDULE.find(s => s.d > todayStr()) || SCHEDULE.at(-1);
 
   function renderHome() {
@@ -288,6 +391,32 @@
     $('startStarred').classList.toggle('opacity-40', !starred.size);
     $('dexCount').textContent = `${MONSTERS.filter((_, i) => dex[i]).length}/10`;
     $('autoSpeak').checked = autoSpeak;
+
+    // 夥伴
+    if (partner === null) {
+      $('hPartner').innerHTML = '<div class="text-6xl py-5">❔</div>';
+      $('hPName').textContent = '還沒有夥伴';
+      $('hXp').style.width = '0';
+      $('hXpText').textContent = '完成第一關就能收服夥伴！';
+      $('pickPartner').classList.add('hidden');
+    } else {
+      const L = lvOf(pets[partner] || 0);
+      $('hPartner').innerHTML = `<div class="bob">${mon(partner, 100)}</div>`;
+      $('hPName').textContent = `${pname(partner)} Lv.${L.lv}`;
+      $('hXp').style.width = L.next ? `${(L.into / L.next) * 100}%` : '100%';
+      $('hXpText').textContent = L.next ? `EXP ${L.into} / ${L.next}${L.lv < 5 ? '・Lv.5 進化' : L.lv < 10 ? '・Lv.10 進化' : ''}` : '已經是最強的 MAX！';
+      $('pickPartner').classList.remove('hidden');
+    }
+
+    // 蛋
+    ensureEgg();
+    const en = egg.days.length, warmed = egg.days.includes(todayStr());
+    $('hEgg').innerHTML = `<div class="${en === EGG_DAYS - 1 && !warmed ? 'wobble' : ''}">${eggSvg(egg.mi, 96, en)}</div>`;
+    $('hEggDots').textContent = '🔥'.repeat(en) + '⚪'.repeat(EGG_DAYS - en);
+    $('hEggText').textContent = warmed ? '今天保暖完成 ✅ 明天再來！'
+      : EGG_DAYS - en === 1 ? '再完成一關就會孵化！' : `每天完成一關幫蛋保暖（還要 ${EGG_DAYS - en} 天）`;
+    const s = streak();
+    $('hStreak').textContent = s >= 2 ? `🔥 已經連續練習 ${s} 天！` : '';
   }
 
   // weighted pick without replacement: 易錯 and ⭐ words ×4
@@ -310,12 +439,22 @@
   function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); window.scrollTo(0, 0); }
 
   function startRound(words, label) {
-    const caughtAll = MONSTERS.every((_, i) => dex[i]);
-    const mi = caughtAll ? Math.floor(Math.random() * MONSTERS.length) : MONSTERS.findIndex((_, i) => !dex[i]);
-    G = { words, label, queue: [...words], total: words.length, done: 0, mistakes: 0, missed: new Set(), mi, again: new Set() };
-    $('monster').innerHTML = monsterSvg(MONSTERS[mi], 150);
-    $('mName').textContent = MONSTERS[mi].name;
-    $('mSay').textContent = `我是${MONSTERS[mi].name}！拼對單字來打倒我吧！`;
+    ensureEgg();
+    const caught = caughtList(), starter = !caught.length;
+    // 第一次玩：打倒的怪獸直接當夥伴；之後都是和夥伴一起打野生怪獸
+    const mi = starter ? MONSTERS.findIndex((_, i) => i !== egg.mi)
+      : pick(caught.length > 1 ? caught.filter(i => i !== partner) : caught);
+    const narrow = innerWidth < 480;
+    G = { words, label, queue: [...words], total: words.length, done: 0, mistakes: 0, missed: new Set(), mi, again: new Set(),
+          starter, xp: 0, wasStarred: new Set(starred), size: narrow ? 120 : 150 };
+    $('monster').innerHTML = monsterSvg(MONSTERS[mi], G.size);
+    $('mName').textContent = starter ? MONSTERS[mi].name : `野生的${MONSTERS[mi].name}`;
+    $('mSay').textContent = starter ? `我是${MONSTERS[mi].name}！打倒我，我就當你的夥伴！` : `野生的${MONSTERS[mi].name}出現了！`;
+    $('pBox').classList.toggle('hidden', partner === null);
+    if (partner !== null) {
+      $('partner').innerHTML = mon(partner, narrow ? 70 : 96);
+      $('pName').textContent = `${pname(partner)} Lv.${lvOf(pets[partner] || 0).lv}`;
+    }
     show('battle');
     nextWord();
   }
@@ -408,13 +547,22 @@
     draw();
     speak(w.en);
     G.queue.shift();
+    // EXP：一次就拼對 10，易錯／星號字一次拼對 20，拼錯或用提示後拼對 3
+    const gain = c.first && !c.wrong ? ((HARD.has(c.wi + 1) || G.wasStarred.has(c.wi)) ? 20 : 10) : 3;
+    G.xp += gain;
+    if (partner !== null) {
+      const p = $('partner');
+      p.classList.remove('hop'); void p.offsetWidth; p.classList.add('hop');
+      $('pfx').insertAdjacentHTML('beforeend', `<span class="xpf">+${gain} EXP</span>`);
+      setTimeout(() => { $('pfx').innerHTML = ''; }, 1000);
+    }
     if (c.wrong && !G.again.has(c.wi)) { G.again.add(c.wi); G.queue.push(c.wi); }   // 拼錯過的字，最後再拼一次
     if (c.first) {
       G.done++;
       const fx = $('fx');
       fx.insertAdjacentHTML('beforeend', '<span class="zap">⚡</span><span class="dmg">-1</span>');
-      setTimeout(() => { sfx.hit(); $('monster').innerHTML = monsterSvg(MONSTERS[G.mi], 150, 'ouch'); $('monster').classList.add('hit'); }, 300);
-      setTimeout(() => { fx.innerHTML = ''; $('monster').classList.remove('hit'); $('monster').innerHTML = monsterSvg(MONSTERS[G.mi], 150); }, 950);
+      setTimeout(() => { sfx.hit(); $('monster').innerHTML = monsterSvg(MONSTERS[G.mi], G.size, 'ouch'); $('monster').classList.add('hit'); }, 300);
+      setTimeout(() => { fx.innerHTML = ''; $('monster').classList.remove('hit'); $('monster').innerHTML = monsterSvg(MONSTERS[G.mi], G.size); }, 950);
       $('mSay').textContent = pick(OUCH);
     } else {
       sfx.tap();
@@ -448,17 +596,91 @@
 
   function finish() {
     sfx.win();
-    dex[G.mi] = (dex[G.mi] || 0) + 1;
-    save('kev-dex', dex);
-    const m = MONSTERS[G.mi];
+    const today = todayStr(), m = MONSTERS[G.mi], events = [];
+    const days = load('kev-days', []);
+    if (!days.includes(today)) { days.push(today); save('kev-days', days.slice(-400)); }
+
+    if (G.starter) {
+      dex[G.mi] = 1;
+      partner = G.mi; save('kev-partner', partner);
+      $('rTitle').textContent = `🎉 收服了${m.name}！牠是你的第一個夥伴！`;
+    } else {
+      $('rTitle').textContent = `🎉 打倒了野生的${m.name}！`;
+    }
+
+    // 夥伴拿 EXP（全對 +30、只錯一點 +15）
     const stars = G.mistakes === 0 ? 3 : G.mistakes <= 2 ? 2 : 1;
-    $('rMonster').innerHTML = monsterSvg(m, 190);
-    $('rName').textContent = m.name + (dex[G.mi] > 1 ? `（第 ${dex[G.mi]} 次）` : '');
+    G.xp += stars === 3 ? 30 : stars === 2 ? 15 : 0;
+    const before = lvOf(pets[partner] || 0);
+    const r = addXp(partner, G.xp);
+    if (r.evolve) events.push(evolveEvent(partner, r.b, r.a));
+    const after = lvOf(pets[partner]);
+
+    // 蛋：每天第一次過關保暖一次，滿 3 天孵化
+    ensureEgg();
+    if (egg.days.includes(today)) {
+      $('rEgg').textContent = '🥚 今天已經幫蛋保暖過了，明天再來喔！';
+    } else {
+      egg.days.push(today);
+      if (egg.days.length >= EGG_DAYS) {
+        const mi = egg.mi, isNew = !dex[mi];
+        dex[mi] = (dex[mi] || 0) + 1;
+        if (isNew) {
+          events.push({ title: '🥚 蛋孵化了！', before: eggSvg(mi, 190, 2), after: mon(mi, 190), text: `孵出了${MONSTERS[mi].name}！快去圖鑑看看牠～` });
+        } else {
+          const r2 = addXp(mi, 100);
+          events.push({ title: '🥚 蛋孵化了！', before: eggSvg(mi, 190, 2), after: mon(mi, 190), text: `又孵出一隻${MONSTERS[mi].name}！牠的 EXP +100` });
+          if (r2.evolve) events.push(evolveEvent(mi, r2.b, r2.a));
+        }
+        $('rEgg').textContent = '🥚 蛋孵化了！明天會有一顆新的蛋～';
+        egg = null;
+        ensureEgg();
+      } else {
+        $('rEgg').textContent = `🔥 幫蛋保暖了！再 ${EGG_DAYS - egg.days.length} 天就會孵化`;
+        save('kev-egg', egg);
+      }
+    }
+    save('kev-dex', dex);
+
+    $('rMonster').innerHTML = mon(partner, 190);
+    $('rName').textContent = `${pname(partner)} Lv.${after.lv}`;
+    const pct = (L) => L.next ? (L.into / L.next) * 100 : 100;
+    $('rXp').style.transition = 'none';
+    $('rXp').style.width = `${after.lv > before.lv ? 0 : pct(before)}%`;
+    void $('rXp').offsetWidth;
+    $('rXp').style.transition = '';
+    setTimeout(() => { $('rXp').style.width = `${pct(after)}%`; }, 300);
+    $('rXpText').textContent = `+${G.xp} EXP` + (after.lv > before.lv ? `　⬆ 升級！Lv.${before.lv} → Lv.${after.lv}` : '') + (after.next ? '' : '　MAX');
     $('rStars').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
     $('rMsg').textContent = stars === 3 ? '全部一次就拼對，太厲害了！' : stars === 2 ? '很棒！只錯一點點！' : '完成了！拼錯的字已經加上 ⭐，下次再複習～';
     $('rMissed').innerHTML = G.missed.size ? `<p class="text-sm text-slate-400 font-bold mb-1">要多練習的字：</p><div class="flex flex-wrap justify-center gap-2">${[...G.missed].map(i => `<button class="bg-white border-2 border-amber-200 rounded-xl px-3 py-1 font-bold" data-say="${WORDS[i].en}">${WORDS[i].emoji} ${WORDS[i].en}　${WORDS[i].zh}</button>`).join('')}</div>` : '';
     show('result');
-    $('result').firstElementChild.textContent = `🎉 收服了${m.name}！`;
+    confetti();
+    if (events.length) setTimeout(() => playEvents(events), 1400);
+  }
+
+  let evQ = [];
+  function playEvents(list) { evQ = list; nextEvent(); }
+  function nextEvent() {
+    const e = evQ.shift();
+    if (!e) { $('event').classList.add('hidden'); return; }
+    $('event').classList.remove('hidden');
+    $('evTitle').textContent = e.title;
+    $('evText').textContent = '';
+    $('evOk').classList.add('invisible');
+    $('evArt').className = 'my-4 evshake';
+    $('evArt').innerHTML = e.before;
+    setTimeout(() => {
+      $('evArt').className = 'my-4 catch';
+      $('evArt').innerHTML = e.after;
+      $('evText').textContent = e.text;
+      $('evOk').classList.remove('invisible');
+      sfx.win();
+      confetti();
+    }, 2300);
+  }
+
+  function confetti() {
     for (let i = 0; i < 40; i++) {
       const p = document.createElement('span');
       p.className = 'cf'; p.textContent = pick(['🎉', '✨', '⭐', '🌈', '💫']);
@@ -469,7 +691,12 @@
   }
 
   function renderDex() {
-    $('dexGrid').innerHTML = MONSTERS.map((m, i) => `<div class="text-center ${dex[i] ? '' : 'silhouette'}">${monsterSvg(m, 90)}<p class="font-bold text-sm">${dex[i] ? m.name : '？？？'}</p>${dex[i] ? `<p class="text-xs text-slate-400">收服 ${dex[i]} 次</p>` : ''}</div>`).join('');
+    $('dexGrid').innerHTML = MONSTERS.map((m, i) => {
+      if (!dex[i]) return `<div class="text-center silhouette p-1">${monsterSvg(m, 90)}<p class="font-bold text-sm">？？？</p></div>`;
+      const L = lvOf(pets[i] || 0), me = i === partner;
+      return `<button data-mi="${i}" class="text-center rounded-2xl p-1 border-4 ${me ? 'border-emerald-300 bg-emerald-50' : 'border-transparent'}">${mon(i, 90)}`
+        + `<p class="font-bold text-sm leading-tight">${pname(i)}</p><p class="text-xs ${me ? 'text-emerald-600 font-bold' : 'text-slate-400'}">Lv.${L.lv}${L.next ? '' : ' MAX'}${me ? '・夥伴' : ''}</p></button>`;
+    }).join('');
   }
 
   // ── events ──
@@ -490,6 +717,14 @@
   $('rMissed').onclick = (e) => { const b = e.target.closest('[data-say]'); if (b) speak(b.dataset.say); };
   $('autoSpeak').onchange = (e) => { autoSpeak = e.target.checked; save('kev-spell-autospeak', autoSpeak); };
   $('dexBtn').onclick = () => { renderDex(); $('dex').classList.remove('hidden'); };
+  $('pickPartner').onclick = () => { renderDex(); $('dex').classList.remove('hidden'); };
+  $('dexGrid').onclick = (e) => {
+    const b = e.target.closest('[data-mi]');
+    if (!b) return;
+    partner = +b.dataset.mi; save('kev-partner', partner);
+    sfx.tap(); renderDex(); renderHome();
+  };
+  $('evOk').onclick = nextEvent;
   $('dexClose').onclick = () => $('dex').classList.add('hidden');
   $('dex').onclick = (e) => { if (e.target.id === 'dex') $('dex').classList.add('hidden'); };
   // keyboard also works on a computer
