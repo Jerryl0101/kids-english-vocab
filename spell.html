@@ -64,6 +64,7 @@
   .xpf { position: absolute; left: 50%; top: 0; font-weight: 900; font-size: 1.2rem; color: #16a34a; white-space: nowrap; animation: xpup 1s forwards; pointer-events: none; }
   @keyframes glow { 0%,100% { filter: brightness(1); } 50% { filter: brightness(2.6) saturate(.3); } }
   .evshake > svg { animation: shake .4s 4, glow .55s 3; }
+  #dexGrid svg, #hPartner svg { max-width: 100%; height: auto; }
   .silhouette svg { filter: brightness(0) opacity(.18); }
   #confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 60; }
   .cf { position: absolute; top: -10%; animation: fall 2.2s ease-in forwards; }
@@ -252,7 +253,7 @@
   const PREFIX = ['', '', '超級', '傳說'];
   const stageOfMi = (mi) => stageOf(lvOf(pets[mi] || 0).lv);
   const pname = (mi) => PREFIX[stageOfMi(mi)] + MONSTERS[mi].name;
-  const mon = (mi, size, face) => monsterSvg(MONSTERS[mi], size, face, stageOfMi(mi));
+  const mon = (mi, size, face, opts) => monsterSvg(MONSTERS[mi], size, face, stageOfMi(mi), opts);
   function addXp(mi, amt) {
     const b = lvOf(pets[mi] || 0).lv;
     pets[mi] = (pets[mi] || 0) + amt;
@@ -289,37 +290,126 @@
       <path d="M50 8 C74 8 82 44 82 62 A32 32 0 0 1 18 62 C18 44 26 8 50 8 Z" fill="#FFFDF2" stroke="${ink}" stroke-width="3"/>${spots}${cracks}</svg>`;
   }
 
-  // stage 1 = 原型, 2 = 超級（長翅膀）, 3 = 傳說（翅膀 + 皇冠 + 光環）
-  function monsterSvg(m, size, face = 'happy', stage = 1) {
-    const c = m.color, ink = '#333';
-    const mouth = face === 'ouch' ? '<ellipse cx="50" cy="73" rx="5" ry="4" fill="#333"/>'
+  function shade(hex, f) {   // f > 0 混白變亮，f < 0 混黑變深
+    const n = parseInt(hex.slice(1), 16), t = f < 0 ? 0 : 255, p = Math.abs(f);
+    return '#' + [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(v + (t - v) * p).toString(16).padStart(2, '0')).join('');
+  }
+  function vivid(hex, ds, dl) {   // 調整飽和度／亮度（HSL）
+    const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    let h = 0, l = (mx + mn) / 2, sat = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+    if (d) h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    sat = Math.min(1, sat + ds); l = Math.max(0, Math.min(1, l + dl));
+    const C = (1 - Math.abs(2 * l - 1)) * sat, X = C * (1 - Math.abs(h % 2 - 1)), m0 = l - C / 2;
+    const [r1, g1, b1] = h < 1 ? [C, X, 0] : h < 2 ? [X, C, 0] : h < 3 ? [0, C, X] : h < 4 ? [0, X, C] : h < 5 ? [X, 0, C] : [C, 0, X];
+    return '#' + [r1, g1, b1].map(v => Math.round((v + m0) * 255).toString(16).padStart(2, '0')).join('');
+  }
+  const mir = (s) => `<g transform="translate(100 0) scale(-1 1)">${s}</g>`;
+
+  // stage 1 = 原型
+  // stage 2 = 超級：變大、顏色變深、帥氣眉毛、張嘴笑、各自的進化特徵
+  // stage 3 = 傳說：再變大、漸層色、星星眼、翅膀、光環、特徵更華麗
+  // opts.wild：野生怪獸（顏色暗、生氣眉毛、撇嘴）；opts.grow === false：不隨進化放大（戰鬥畫面空間小）
+  function monsterSvg(m, size, face = 'happy', stage = 1, opts = {}) {
+    const ink = '#333', s2 = stage >= 2, s3 = stage >= 3, wild = !!opts.wild;
+    let c = wild ? shade(m.color, -0.3) : stage === 2 ? vivid(m.color, 0.3, -0.04) : m.color, defs = '';
+    if (s3) {
+      const id = `lg-${m.kind}`;
+      defs = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(vivid(m.color, 0.3, 0), 0.4)}"/><stop offset="1" stop-color="${vivid(m.color, 0.35, -0.1)}"/></linearGradient></defs>`;
+      c = `url(#${id})`;
+    }
+    const mouth = face === 'ouch' ? `<ellipse cx="50" cy="73" rx="5" ry="4" fill="${ink}"/>`
+      : wild ? `<path d="M42 74 Q50 68 58 74" fill="none" stroke="${ink}" stroke-width="2.5" stroke-linecap="round"/>`
+      : s2 ? `<path d="M41 68 Q50 82 59 68 Z" fill="${ink}" stroke="${ink}" stroke-width="1.5" stroke-linejoin="round"/><path d="M45 75 Q50 72 55 75 Q50 80 45 75 Z" fill="#FF7A9A"/>`
       : `<path d="M43 70 Q50 77 57 70" fill="none" stroke="${ink}" stroke-width="2.5" stroke-linecap="round"/>`;
+    const shine = s3 ? `<path d="${starPath(40.5, 55.5, 3.4, 1.4)}" fill="#fff"/><path d="${starPath(64.5, 55.5, 3.4, 1.4)}" fill="#fff"/>`
+      : `<circle cx="40.5" cy="56" r="1.5" fill="#fff"/><circle cx="64.5" cy="56" r="1.5" fill="#fff"/>`;
     const eyes = face === 'ouch'
       ? `<path d="M32 52 L44 60 M32 60 L44 52 M56 52 L68 60 M56 60 L68 52" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>`
       : `<ellipse cx="38" cy="56" rx="7" ry="8" fill="#fff" stroke="${ink}" stroke-width="2"/><ellipse cx="62" cy="56" rx="7" ry="8" fill="#fff" stroke="${ink}" stroke-width="2"/>
-         <circle cx="39" cy="58" r="4" fill="${ink}"/><circle cx="63" cy="58" r="4" fill="${ink}"/><circle cx="40.5" cy="56" r="1.5" fill="#fff"/><circle cx="64.5" cy="56" r="1.5" fill="#fff"/>`;
+         <circle cx="39" cy="58" r="4" fill="${ink}"/><circle cx="63" cy="58" r="4" fill="${ink}"/>${shine}`;
+    const brows = face === 'ouch' ? '' : wild ? `<path d="M29 43 L45 50 M71 43 L55 50" stroke="${ink}" stroke-width="3.5" stroke-linecap="round"/>`
+      : s2 ? `<path d="M30 44 L45 47 M70 44 L55 47" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>` : '';
     const blush = `<ellipse cx="29" cy="68" rx="5" ry="3" fill="#FF7A9A" opacity=".6"/><ellipse cx="71" cy="68" rx="5" ry="3" fill="#FF7A9A" opacity=".6"/>`;
     const feet = `<ellipse cx="36" cy="92" rx="9" ry="5" fill="${c}" stroke="${ink}" stroke-width="2.5"/><ellipse cx="64" cy="92" rx="9" ry="5" fill="${c}" stroke="${ink}" stroke-width="2.5"/>`;
     const round = `<ellipse cx="50" cy="64" rx="33" ry="28" fill="${c}" stroke="${ink}" stroke-width="3"/>`;
     const wing = `<path d="M22 58 C10 40 -4 42 -5 51 C1 52 2 57 -2 61 C4 62 5 67 1 71 C8 72 15 73 22 68 Z" fill="#fff" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>`;
-    const wings = stage >= 2 ? `${wing}<g transform="translate(100 0) scale(-1 1)">${wing}</g>` : '';
-    const aura = stage >= 3 ? `<circle cx="50" cy="52" r="60" fill="${c}" opacity=".3"/><circle cx="50" cy="52" r="48" fill="#FFF7C2" opacity=".55"/>` : '';
-    const crown = stage >= 3 ? `<path d="M37 4 L34 -11 L43 -4 L50 -15 L57 -4 L66 -11 L63 4 Z" fill="#FFD43B" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/><circle cx="50" cy="-1" r="2.6" fill="#FF4F8B"/>`
-      + [[-4, 6, 6], [104, 22, 5], [100, 92, 6]].map(([x, y, r]) => `<path d="${starPath(x, y, r, r * 0.42)}" fill="#FFD43B" stroke="${ink}" stroke-width="1.2"/>`).join('') : '';
-    const vb = stage >= 2 ? '-12 -18 124 124' : '0 0 100 100';
-    const S = (body, top = '', back = '', noFeet) => `<svg viewBox="${vb}" width="${size}" height="${size}">${aura}${wings}${back}${noFeet ? '' : feet}${body}${top}${crown}${eyes}${blush}${mouth}</svg>`;
+    const wings = s3 && m.kind !== 'dragon' ? wing + mir(wing) : '';
+    const aura = s3 ? `<circle cx="50" cy="56" r="62" fill="${shade(m.color, 0.2)}" opacity=".35"/><circle cx="50" cy="56" r="50" fill="#FFF7C2" opacity=".6"/>`
+      + [[-6, 0, 6], [106, 14, 5], [104, 96, 6], [-4, 92, 5]].map(([x, y, r]) => `<path d="${starPath(x, y, r, r * 0.42)}" fill="#FFD43B" stroke="${ink}" stroke-width="1.2"/>`).join('') : '';
+    const k = [1, 1, 1.08, 1.15][stage];
+    const vb = ['', '0 0 100 100', '-10 -14 120 120', '-14 -22 128 128'][stage];
+    const px = Math.round(size * (opts.grow === false ? 1 : [1, 1, 1.2, 1.36][stage]));
+    const S = (body, top = '', back = '', noFeet) => `<svg viewBox="${vb}" width="${px}" height="${px}">${defs}${aura}<g transform="translate(50 60) scale(${k}) translate(-50 -60)">${wings}${back}${noFeet ? '' : feet}${body}${top}${eyes}${brows}${blush}${mouth}</g></svg>`;
+
+    // small parts
+    const st = (x, y, R, fill = '#FFB800') => `<path d="${starPath(x, y, R, R * 0.44)}" fill="${fill}" stroke="${ink}" stroke-width="2"/>`;
+    const line = (d, w = 2.5, col = ink) => `<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`;
+    const shape = (d, fill, w = 2.2) => `<path d="${d}" fill="${fill}" stroke="${ink}" stroke-width="${w}" stroke-linejoin="round"/>`;
+    const drop = (x, y, r) => shape(`M${x} ${y - 1.7 * r} C${x + r} ${y - 0.3 * r} ${x + r} ${y + r} ${x} ${y + r} C${x - r} ${y + r} ${x - r} ${y - 0.3 * r} ${x} ${y - 1.7 * r} Z`, '#8FD3FF', 1.6);
+    const flame = (x, y, h, w, fill) => shape(`M${x - w} ${y} C${x - w - 1} ${y - h * 0.5} ${x - 2} ${y - h * 0.7} ${x} ${y - h} C${x + 2} ${y - h * 0.7} ${x + w + 1} ${y - h * 0.5} ${x + w} ${y} Z`, fill, 1.8);
+    const flake = (x, y) => line(`M${x - 6} ${y} L${x + 6} ${y} M${x - 3} ${y - 5.2} L${x + 3} ${y + 5.2} M${x - 3} ${y + 5.2} L${x + 3} ${y - 5.2}`, 2, '#5BB8F5');
+    const lolli = (x, y, fx, fy) => line(`M${fx} ${fy} L${x} ${y}`, 3) + `<circle cx="${x}" cy="${y}" r="9" fill="#fff" stroke="${ink}" stroke-width="2.5"/>` + line(`M${x} ${y} m-5 0 a5 5 0 1 1 5 5 a3 3 0 1 1 -3 -3`, 2.2, '#FF4F8B');
+
     switch (m.kind) {
-      case 'flame': return S(round, `<path d="M50 38 C38 30 44 18 50 8 C52 18 62 20 58 30 C64 26 66 34 60 40 Z" fill="#FFC93C" stroke="${ink}" stroke-width="2.5"/>`);
-      case 'drop': return S(`<path d="M50 14 C62 34 84 46 84 66 A34 28 0 0 1 16 66 C16 46 38 34 50 14 Z" fill="${c}" stroke="${ink}" stroke-width="3"/><ellipse cx="34" cy="44" rx="4" ry="7" fill="#fff" opacity=".7"/>`);
-      case 'leaf': return S(round, `<path d="M50 37 L50 26" stroke="${ink}" stroke-width="2.5"/><path d="M50 27 C40 14 28 20 30 28 C38 32 46 30 50 27 Z" fill="#4FA83D" stroke="${ink}" stroke-width="2"/><path d="M50 27 C60 12 74 18 70 27 C62 32 54 30 50 27 Z" fill="#4FA83D" stroke="${ink}" stroke-width="2"/>`);
-      case 'star': return S(round, `<path d="M36 38 L28 18" stroke="${ink}" stroke-width="2.5"/><path d="M64 38 L72 18" stroke="${ink}" stroke-width="2.5"/>${[[28, 16], [72, 16]].map(([x, y]) => `<path d="${starPath(x, y, 8, 3.5)}" fill="#FFB800" stroke="${ink}" stroke-width="2"/>`).join('')}`);
-      case 'cloud': return S(`<path d="M22 84 C8 84 8 62 22 62 C20 44 40 36 50 46 C58 32 82 38 78 58 C94 60 92 84 78 84 Z" fill="${c}" stroke="${ink}" stroke-width="3"/>`, '', '', true);
-      case 'rock': return S(`<path d="M20 86 L14 62 L26 40 L50 32 L74 40 L86 62 L80 86 Z" fill="${c}" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/><path d="M72 46 L66 52 L70 58" fill="none" stroke="${ink}" stroke-width="2"/>`);
-      case 'ice': return S(round, `<path d="M34 40 L38 22 L44 38 Z M44 37 L50 12 L56 37 Z M56 38 L62 22 L66 40 Z" fill="#E6FAFF" stroke="${ink}" stroke-width="2.2" stroke-linejoin="round"/>`);
-      case 'ghost': return S(`<path d="M18 92 L18 56 A32 32 0 0 1 82 56 L82 92 L72 84 L62 92 L50 84 L38 92 L28 84 Z" fill="${c}" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/>`, '', '', true);
-      case 'candy': return S(round, `<path d="M50 36 L50 22" stroke="${ink}" stroke-width="3"/><circle cx="50" cy="16" r="9" fill="#fff" stroke="${ink}" stroke-width="2.5"/><path d="M50 16 m-5 0 a5 5 0 1 1 5 5 a3 3 0 1 1 -3 -3" fill="none" stroke="#FF4F8B" stroke-width="2.2"/>`);
-      case 'dragon': return S(round, `<path d="M36 40 L30 22 L44 36 Z M64 40 L70 22 L56 36 Z" fill="#FFE07A" stroke="${ink}" stroke-width="2.2" stroke-linejoin="round"/>`,
-        `<path d="M20 58 L2 40 L8 62 L0 70 L20 70 Z M80 58 L98 40 L92 62 L100 70 L80 70 Z" fill="#2E9C86" stroke="${ink}" stroke-width="2.2" stroke-linejoin="round"/>`);
+      case 'flame': {   // 火焰越燒越大，傳說型態兩邊肩膀也冒火
+        const big = shape('M50 40 C34 34 34 18 44 2 C44 12 50 14 53 0 C63 12 70 24 64 36 C70 34 72 40 64 44 Z', '#FFB020', 2.5) + `<path d="M50 38 C43 34 43 25 49 16 C51 24 58 27 56 36 Z" fill="#FFE66B"/>`;
+        const side = shape('M24 50 C14 44 16 32 21 24 C23 32 30 34 29 44 Z', '#FFB020', 2);
+        return S(round, s3 ? side + mir(side) + big : s2 ? big : shape('M50 38 C38 30 44 18 50 8 C52 18 62 20 58 30 C64 26 66 34 60 40 Z', '#FFC93C', 2.5));
+      }
+      case 'drop': {   // 身邊開始飄小水珠，傳說型態頭上捲起浪花
+        const drops = s3 ? drop(6, 40, 4) + drop(94, 34, 4) + drop(92, 80, 3.5) + drop(4, 74, 3.5) + drop(22, 14, 3) : s2 ? drop(8, 40, 4) + drop(92, 34, 4) + drop(90, 80, 3.5) : '';
+        const curl = s3 ? line('M50 14 C44 4 52 -4 60 0 C66 4 62 12 56 10', 4, '#2E86DE') : '';
+        return S(`<path d="M50 14 C62 34 84 46 84 66 A34 28 0 0 1 16 66 C16 46 38 34 50 14 Z" fill="${c}" stroke="${ink}" stroke-width="3"/><ellipse cx="34" cy="44" rx="4" ry="7" fill="#fff" opacity=".7"/>`, curl + drops);
+      }
+      case 'leaf': {   // 葉子變大、冒出花苞，傳說型態開出一朵花
+        if (!s2) return S(round, line('M50 37 L50 26') + shape('M50 27 C40 14 28 20 30 28 C38 32 46 30 50 27 Z', '#4FA83D', 2) + shape('M50 27 C60 12 74 18 70 27 C62 32 54 30 50 27 Z', '#4FA83D', 2));
+        const leaf = shape('M50 28 C38 8 16 14 20 28 C30 36 44 33 50 28 Z', '#4FA83D', 2);
+        const top = s3
+          ? line('M50 38 L50 20') + leaf + mir(leaf) + [0, 72, 144, 216, 288].map(a => `<ellipse cx="50" cy="3" rx="5.5" ry="8" transform="rotate(${a} 50 12)" fill="#FF8FB8" stroke="${ink}" stroke-width="1.8"/>`).join('') + `<circle cx="50" cy="12" r="5" fill="#FFD43B" stroke="${ink}" stroke-width="1.8"/>`
+          : line('M50 38 L50 26') + leaf + mir(leaf) + `<circle cx="50" cy="22" r="5.5" fill="#FF9EC7" stroke="${ink}" stroke-width="2"/>`;
+        return S(round, top);
+      }
+      case 'star': {   // 觸角星星 2 → 3 → 5 顆
+        const ants = s3 ? [[32, 42, 14, 24], [40, 37, 30, 6], [50, 36, 50, -2], [60, 37, 70, 6], [68, 42, 86, 24]]
+          : s2 ? [[36, 38, 24, 14], [50, 35, 50, 6], [64, 38, 76, 14]] : [[36, 38, 28, 18], [64, 38, 72, 18]];
+        const r = s3 ? 8 : s2 ? 10 : 8;
+        return S(round, ants.map(([a, b, x, y]) => line(`M${a} ${b} L${x} ${y}`)).join('') + ants.map(([, , x, y]) => st(x, y - 2, r)).join(''));
+      }
+      case 'cloud': {   // 冒出閃電，傳說型態背後出現彩虹
+        const bolt = shape('M92 12 L84 28 L91 28 L85 42 L99 22 L92 22 L97 12 Z', '#FFD43B', 2);
+        const rainbow = s3 ? ['#FF6B6B', '#FFD43B', '#7ACB6A', '#5BB8F5'].map((col, i) => `<path d="M${4 + i * 6} 70 A${46 - i * 6} ${46 - i * 6} 0 0 1 ${96 - i * 6} 70" fill="none" stroke="${col}" stroke-width="6"/>`).join('') : '';
+        return S(`<path d="M22 84 C8 84 8 62 22 62 C20 44 40 36 50 46 C58 32 82 38 78 58 C94 60 92 84 78 84 Z" fill="${c}" stroke="${ink}" stroke-width="3"/>`,
+          s3 ? bolt + mir(bolt) : s2 ? bolt : '', rainbow, true);
+      }
+      case 'rock': {   // 頭上長出水晶，傳說型態額頭多一顆寶石
+        const crystals = s3
+          ? shape('M30 42 L24 24 L30 12 L37 24 L38 40 Z', '#B48CFF') + shape('M44 34 L44 10 L50 0 L56 10 L56 34 Z', '#FF9EC7') + shape('M62 40 L63 24 L70 12 L76 24 L70 42 Z', '#8FD3FF') + shape('M50 38 L46 42.5 L50 47 L54 42.5 Z', '#FFD43B', 1.6)
+          : s2 ? shape('M36 38 L33 22 L39 12 L45 22 L44 36 Z', '#B48CFF') + shape('M57 35 L57 20 L63 12 L68 22 L65 37 Z', '#8FD3FF') : '';
+        return S(`<path d="M20 86 L14 62 L26 40 L50 32 L74 40 L86 62 L80 86 Z" fill="${c}" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/>` + line('M72 46 L66 52 L70 58', 2), crystals);
+      }
+      case 'ice': {   // 冰刺 3 → 5 根，傳說型態身邊飄雪花
+        const spikes = s3 ? [[24, 46, 26, 6], [36, 39, 12, 6], [50, 36, -4, 6], [64, 39, 12, 6], [76, 46, 26, 6]]
+          : s2 ? [[30, 40, 26, 5], [40, 37, 16, 5], [50, 36, 6, 5], [60, 37, 16, 5], [70, 40, 26, 5]] : [[39, 39, 22, 5], [50, 37, 12, 6], [61, 39, 22, 5]];
+        return S(round, spikes.map(([x, by, ty, w]) => shape(`M${x - w} ${by} L${x} ${ty} L${x + w} ${by} Z`, '#E6FAFF')).join('') + (s3 ? flake(6, 30) + flake(94, 28) + flake(96, 78) + flake(4, 80) : ''));
+      }
+      case 'ghost': {   // 身邊飄鬼火，傳說型態頭上燃起紫色火焰
+        const wisp = (x, y) => flame(x, y + 8, 17, 6, '#8FD3FF');
+        const top = (s2 ? wisp(6, 50) + wisp(94, 50) : '') + (s3 ? wisp(10, 12) + wisp(90, 12) + flame(38, 29, 12, 5, '#7B5CE0') + flame(50, 26, 18, 6, '#7B5CE0') + flame(62, 29, 12, 5, '#7B5CE0') : '');
+        return S(`<path d="M18 92 L18 56 A32 32 0 0 1 82 56 L82 92 L72 84 L62 92 L50 84 L38 92 L28 84 Z" fill="${c}" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/>`, top, '', true);
+      }
+      case 'candy': {   // 棒棒糖 1 → 2 支，傳說型態頭頂櫻桃、身上有彩色糖粒
+        const sprinkles = s3 ? [[30, 80, 30, '#FF4F8B'], [66, 84, -20, '#5BB8F5'], [76, 60, 60, '#FFD43B'], [40, 87, -40, '#7ACB6A'], [22, 58, 20, '#B79CF0']]
+          .map(([x, y, a, col]) => `<rect x="${x - 3}" y="${y - 1.2}" width="6" height="2.4" rx="1.2" fill="${col}" transform="rotate(${a} ${x} ${y})"/>`).join('') : '';
+        const cherry = s3 ? line('M50 36 Q50 26 57 20', 2.5, '#2E7D32') + `<circle cx="50" cy="31" r="6" fill="#E63946" stroke="${ink}" stroke-width="2"/>` : '';
+        return S(round + sprinkles, s2 ? lolli(28, 16, 38, 38) + lolli(72, 16, 62, 38) + cherry : lolli(50, 16, 50, 36));
+      }
+      case 'dragon': {   // 角和翅膀越長越大，傳說型態多一根中間的角
+        const horn = s3 ? 'M32 42 L18 8 L44 34 Z' : s2 ? 'M34 40 L24 14 L44 34 Z' : 'M36 40 L30 22 L44 36 Z';
+        const wingD = s3 ? 'M20 54 L-4 12 L2 44 L-4 52 L2 62 L-4 74 L20 74 Z' : s2 ? 'M20 56 L-2 26 L4 52 L-4 60 L4 68 L-2 76 L20 72 Z' : 'M20 58 L2 40 L8 62 L0 70 L20 70 Z';
+        const wingP = shape(wingD, s3 ? '#23806E' : '#2E9C86') + (s3 ? line('M20 60 L0 26 M20 66 L-2 52', 1.8) : '');
+        return S(round, shape(horn, '#FFE07A') + mir(shape(horn, '#FFE07A')) + (s3 ? shape('M46 36 L50 14 L54 36 Z', '#FFE07A') : ''), wingP + mir(wingP));
+      }
     }
   }
 
@@ -443,16 +533,16 @@
     const caught = caughtList(), starter = !caught.length;
     // 第一次玩：打倒的怪獸直接當夥伴；之後都是和夥伴一起打野生怪獸
     const mi = starter ? MONSTERS.findIndex((_, i) => i !== egg.mi)
-      : pick(caught.length > 1 ? caught.filter(i => i !== partner) : caught);
+      : pick(caught.length > 1 ? caught.filter(i => i !== partner) : MONSTERS.map((_, i) => i).filter(i => i !== partner && i !== egg.mi));   // 野生怪獸絕不和夥伴同一種
     const narrow = innerWidth < 480;
     G = { words, label, queue: [...words], total: words.length, done: 0, mistakes: 0, missed: new Set(), mi, again: new Set(),
-          starter, xp: 0, wasStarred: new Set(starred), size: narrow ? 120 : 150 };
-    $('monster').innerHTML = monsterSvg(MONSTERS[mi], G.size);
+          starter, xp: 0, wasStarred: new Set(starred), size: narrow ? 120 : 150, mopts: starter ? {} : { wild: true } };
+    $('monster').innerHTML = monsterSvg(MONSTERS[mi], G.size, 'happy', 1, G.mopts);
     $('mName').textContent = starter ? MONSTERS[mi].name : `野生的${MONSTERS[mi].name}`;
     $('mSay').textContent = starter ? `我是${MONSTERS[mi].name}！打倒我，我就當你的夥伴！` : `野生的${MONSTERS[mi].name}出現了！`;
     $('pBox').classList.toggle('hidden', partner === null);
     if (partner !== null) {
-      $('partner').innerHTML = mon(partner, narrow ? 70 : 96);
+      $('partner').innerHTML = mon(partner, narrow ? 70 : 96, 'happy', { grow: false });
       $('pName').textContent = `${pname(partner)} Lv.${lvOf(pets[partner] || 0).lv}`;
     }
     show('battle');
@@ -561,8 +651,8 @@
       G.done++;
       const fx = $('fx');
       fx.insertAdjacentHTML('beforeend', '<span class="zap">⚡</span><span class="dmg">-1</span>');
-      setTimeout(() => { sfx.hit(); $('monster').innerHTML = monsterSvg(MONSTERS[G.mi], G.size, 'ouch'); $('monster').classList.add('hit'); }, 300);
-      setTimeout(() => { fx.innerHTML = ''; $('monster').classList.remove('hit'); $('monster').innerHTML = monsterSvg(MONSTERS[G.mi], G.size); }, 950);
+      setTimeout(() => { sfx.hit(); $('monster').innerHTML = monsterSvg(MONSTERS[G.mi], G.size, 'ouch', 1, G.mopts); $('monster').classList.add('hit'); }, 300);
+      setTimeout(() => { fx.innerHTML = ''; $('monster').classList.remove('hit'); $('monster').innerHTML = monsterSvg(MONSTERS[G.mi], G.size, 'happy', 1, G.mopts); }, 950);
       $('mSay').textContent = pick(OUCH);
     } else {
       sfx.tap();
